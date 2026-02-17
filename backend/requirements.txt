@@ -1,0 +1,53 @@
+# Django Core
+Django>=5.0,<5.1
+djangorestframework>=3.14,<4.0
+drf-nested-routers>=0.93,<1.0
+django-cors-headers>=4.3,<5.0
+django-filter>=23.5,<24.0
+
+# Database
+psycopg2-binary>=2.9,<3.0
+
+# Authentication
+djangorestframework-simplejwt>=5.3,<6.0
+dj-rest-auth>=5.0,<6.0
+django-allauth>=0.60,<1.0
+
+# Async Tasks
+celery>=5.3,<6.0
+redis>=5.0,<6.0
+
+# AI Integration
+google-generativeai>=0.3,<1.0
+
+# Google Cloud
+google-cloud-storage>=2.14,<3.0
+googlemaps>=4.10,<5.0
+google-auth>=2.0,<3.0
+
+# Notifications
+twilio>=8.10,<9.0
+
+# PDF Generation
+weasyprint>=60.0,<61.0
+reportlab>=4.0,<5.0
+Jinja2>=3.1,<4.0
+
+# Calendar
+icalendar>=5.0,<6.0
+
+# Security
+cryptography>=41.0,<43.0
+
+# Utils
+python-decouple>=3.8,<4.0
+Pillow>=10.0,<11.0
+gunicorn>=21.0,<22.0
+certifi>=2023.0.0  # SSL certificates
+requests>=2.31,<3.0  # HTTP client for API fallback
+
+# Development
+pytest>=7.4,<8.0
+pytest-django>=4.7,<5.0
+black>=23.0,<24.0
+flake8>=6.1,<7.0
