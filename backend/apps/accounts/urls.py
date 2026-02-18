@@ -22,6 +22,16 @@ from .views import (
     PublicMoverProfileView,
     MoverListView,
     GoogleAuthView,
+    # Admin views
+    AdminMoverListView,
+    AdminMoverDetailView,
+    AdminMoverApproveView,
+    AdminMoverRejectView,
+    AdminMoverSuspendView,
+    # Onboarding views
+    OnboardingStatusView,
+    OnboardingCompleteView,
+    OnboardingStepView,
 )
 
 app_name = 'accounts'
@@ -59,4 +69,16 @@ urlpatterns = [
 
     # Google OAuth for SPA
     path('google/', GoogleAuthView.as_view(), name='google_auth'),
+
+    # Admin: Mover Management
+    path('admin/movers/', AdminMoverListView.as_view(), name='admin_mover_list'),
+    path('admin/movers/<uuid:id>/', AdminMoverDetailView.as_view(), name='admin_mover_detail'),
+    path('admin/movers/<uuid:id>/approve/', AdminMoverApproveView.as_view(), name='admin_mover_approve'),
+    path('admin/movers/<uuid:id>/reject/', AdminMoverRejectView.as_view(), name='admin_mover_reject'),
+    path('admin/movers/<uuid:id>/suspend/', AdminMoverSuspendView.as_view(), name='admin_mover_suspend'),
+
+    # Onboarding
+    path('onboarding/status/', OnboardingStatusView.as_view(), name='onboarding_status'),
+    path('onboarding/complete/', OnboardingCompleteView.as_view(), name='onboarding_complete'),
+    path('onboarding/step/', OnboardingStepView.as_view(), name='onboarding_step'),
 ]

@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMoverOrders, useAvailableOrders } from '../../api/hooks'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
+import { onboardingAPI, type OnboardingStatus } from '../../api/endpoints/onboarding'
 import type { OrderStatus } from '../../types'
 
 const statusColors: Record<OrderStatus, string> = {
@@ -20,6 +22,17 @@ const statusColors: Record<OrderStatus, string> = {
 export default function MoverDashboard() {
   const { t, i18n } = useTranslation()
   const isRTL = i18n.language === 'he'
+  const navigate = useNavigate()
+  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null)
+
+  useEffect(() => {
+    onboardingAPI.getStatus().then((status) => {
+      setOnboardingStatus(status)
+      if (!status.onboarding_completed) {
+        navigate('/mover/onboarding')
+      }
+    }).catch(() => { /* ignore */ })
+  }, [])
 
   const { data: allOrders, isLoading: loadingAll } = useMoverOrders()
   const { data: availableOrders, isLoading: loadingAvailable } = useAvailableOrders()
@@ -44,7 +57,41 @@ export default function MoverDashboard() {
 
   return (
     <div dir={isRTL ? 'rtl' : 'ltr'}>
-      <h1 className="text-2xl font-bold mb-6">{t('mover.dashboard')}</h1>
+      <h1 className="text-2xl font-bold mb-4">{t('mover.dashboard')}</h1>
+
+      {/* Verification Status Banner */}
+      {onboardingStatus && onboardingStatus.verification_status === 'pending' && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">⏳</span>
+            <div>
+              <p className="font-medium text-yellow-800">
+                {isRTL ? 'החשבון שלך בהמתנה לאישור' : 'Your account is pending approval'}
+              </p>
+              <p className="text-sm text-yellow-700">
+                {isRTL
+                  ? 'אדמין יבדוק ויאשר את החשבון שלך בקרוב. בינתיים תוכל להגדיר את התמחור ואזור השירות.'
+                  : 'An admin will review and approve your account soon. Meanwhile you can set up your pricing and service area.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {onboardingStatus && onboardingStatus.verification_status === 'rejected' && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">❌</span>
+            <div>
+              <p className="font-medium text-red-800">
+                {isRTL ? 'הבקשה שלך נדחתה' : 'Your application was rejected'}
+              </p>
+              <p className="text-sm text-red-700">
+                {isRTL ? 'צור קשר עם התמיכה לפרטים נוספים.' : 'Contact support for more details.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

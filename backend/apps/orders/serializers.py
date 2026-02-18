@@ -4,7 +4,7 @@ Serializers for the orders app.
 from decimal import Decimal
 from rest_framework import serializers
 from apps.core.utils import haversine_distance, extract_coordinates
-from .models import Order, OrderItem, OrderImage, AIConversation, OrderComparison, ComparisonEntry
+from .models import Order, OrderItem, OrderImage, AIConversation, OrderComparison, ComparisonEntry, Review
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -274,3 +274,22 @@ class OrderComparisonSerializer(serializers.ModelSerializer):
 class SelectMoverSerializer(serializers.Serializer):
     """Serializer for selecting a mover from comparison."""
     entry_id = serializers.UUIDField()
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    """Serializer for reviews."""
+    customer_name = serializers.CharField(source='customer.get_full_name', read_only=True)
+
+    class Meta:
+        model = Review
+        fields = [
+            'id', 'order', 'customer', 'customer_name', 'mover',
+            'rating', 'text', 'created_at',
+        ]
+        read_only_fields = ['id', 'order', 'customer', 'mover', 'created_at']
+
+
+class ReviewCreateSerializer(serializers.Serializer):
+    """Serializer for creating a review."""
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    text = serializers.CharField(required=False, allow_blank=True, default='')

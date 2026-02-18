@@ -25,11 +25,17 @@ export interface MoverProfile {
   service_radius_km: number
   logo: string | null
   description: string
+  facebook_url: string
   is_verified: boolean
+  verification_status: 'pending' | 'approved' | 'rejected' | 'suspended'
+  rejection_reason: string
+  verified_at: string | null
   rating: number
   total_reviews: number
   completed_orders: number
   is_active: boolean
+  onboarding_completed: boolean
+  onboarding_step: number
 }
 
 export interface CustomerProfile {

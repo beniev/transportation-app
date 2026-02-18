@@ -2,11 +2,13 @@
 Views for the accounts app.
 """
 import random
+import logging
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.conf import settings
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -26,7 +28,11 @@ from .serializers import (
     RequestVerificationSerializer,
     ChangePasswordSerializer,
     UpdateUserSerializer,
+    AdminMoverProfileSerializer,
+    MoverApprovalSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -207,8 +213,16 @@ class CustomerProfileView(generics.RetrieveUpdateAPIView):
 
 
 class RequestPhoneVerificationView(APIView):
-    """Request phone verification code."""
+    """Request phone verification code. Works for both customers and movers."""
     permission_classes = [permissions.IsAuthenticated]
+
+    def _get_profile(self, user):
+        """Get the appropriate profile for verification."""
+        if user.is_customer and hasattr(user, 'customer_profile'):
+            return user.customer_profile
+        elif user.is_mover and hasattr(user, 'mover_profile'):
+            return user.mover_profile
+        return None
 
     def post(self, request):
         serializer = RequestVerificationSerializer(data=request.data)
@@ -219,41 +233,50 @@ class RequestPhoneVerificationView(APIView):
 
         # Update user's phone
         user.phone = phone
-        user.save()
+        user.save(update_fields=['phone'])
 
-        # Generate verification code
-        if user.is_customer and hasattr(user, 'customer_profile'):
-            profile = user.customer_profile
+        profile = self._get_profile(user)
+        if not profile:
+            return Response(
+                {'error': 'Phone verification not available for this user type'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-            if not profile.can_request_verification():
-                return Response(
-                    {'error': 'Too many verification attempts. Please try again later.'},
-                    status=status.HTTP_429_TOO_MANY_REQUESTS
-                )
+        if not profile.can_request_verification():
+            return Response(
+                {'error': 'Too many verification attempts. Please try again later.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
 
-            code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-            profile.verification_code = code
-            profile.verification_code_expires = timezone.now() + timedelta(minutes=10)
-            profile.verification_attempts += 1
-            profile.save()
+        code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        profile.verification_code = code
+        profile.verification_code_expires = timezone.now() + timedelta(minutes=10)
+        profile.verification_attempts += 1
+        profile.save()
 
-            # TODO: Send SMS via Twilio
-            # sms_service.send(phone, f"Your verification code is: {code}")
+        # Send SMS via SMS4Free
+        from .sms_service import send_verification_code
+        sms_sent = send_verification_code(phone, code)
+        logger.info(f"Verification code for {phone}: {'sent' if sms_sent else 'FAILED'}")
 
-            return Response({
-                'message': 'Verification code sent',
-                'expires_in': 600  # 10 minutes
-            })
-
-        return Response(
-            {'error': 'Phone verification not available for this user type'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({
+            'message': 'Verification code sent',
+            'expires_in': 600,  # 10 minutes
+            'sms_sent': sms_sent,
+        })
 
 
 class VerifyPhoneView(APIView):
-    """Verify phone with code."""
+    """Verify phone with code. Works for both customers and movers."""
     permission_classes = [permissions.IsAuthenticated]
+
+    def _get_profile(self, user):
+        """Get the appropriate profile for verification."""
+        if user.is_customer and hasattr(user, 'customer_profile'):
+            return user.customer_profile
+        elif user.is_mover and hasattr(user, 'mover_profile'):
+            return user.mover_profile
+        return None
 
     def post(self, request):
         serializer = VerifyPhoneSerializer(data=request.data)
@@ -262,13 +285,12 @@ class VerifyPhoneView(APIView):
         code = serializer.validated_data['code']
         user = request.user
 
-        if not user.is_customer or not hasattr(user, 'customer_profile'):
+        profile = self._get_profile(user)
+        if not profile:
             return Response(
                 {'error': 'Phone verification not available for this user type'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        profile = user.customer_profile
 
         # Check if code expired
         if profile.verification_code_expires and timezone.now() > profile.verification_code_expires:
@@ -279,7 +301,8 @@ class VerifyPhoneView(APIView):
 
         # Check code
         if profile.verification_code != code:
-            profile.spam_score += 1
+            if hasattr(profile, 'spam_score'):
+                profile.spam_score += 1
             profile.save()
             return Response(
                 {'error': 'Invalid verification code'},
@@ -288,7 +311,7 @@ class VerifyPhoneView(APIView):
 
         # Mark as verified
         user.phone_verified = True
-        user.save()
+        user.save(update_fields=['phone_verified'])
 
         profile.verification_code = ''
         profile.verification_code_expires = None
@@ -336,3 +359,134 @@ class MoverListView(generics.ListAPIView):
     filterset_fields = ['city', 'is_verified']
     search_fields = ['company_name', 'company_name_he', 'city']
     ordering_fields = ['rating', 'completed_orders', 'created_at']
+
+
+# ──────────────────────────────────────────────
+# Admin Permission
+# ──────────────────────────────────────────────
+
+class IsAdmin(permissions.BasePermission):
+    """Permission for admin-only access."""
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated
+            and request.user.user_type == 'admin'
+        )
+
+
+# ──────────────────────────────────────────────
+# Admin Mover Management Views
+# ──────────────────────────────────────────────
+
+class AdminMoverListView(generics.ListAPIView):
+    """List movers for admin review. Filter by ?status=pending."""
+    serializer_class = AdminMoverProfileSerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        qs = MoverProfile.objects.select_related('user').order_by('-created_at')
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(verification_status=status_filter)
+        return qs
+
+
+class AdminMoverDetailView(generics.RetrieveAPIView):
+    """Admin view: single mover detail."""
+    serializer_class = AdminMoverProfileSerializer
+    permission_classes = [IsAdmin]
+    queryset = MoverProfile.objects.select_related('user')
+    lookup_field = 'id'
+
+
+class AdminMoverApproveView(APIView):
+    """Admin: approve a mover."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, id):
+        mover = get_object_or_404(MoverProfile, id=id)
+        mover.verification_status = MoverProfile.VerificationStatus.APPROVED
+        mover.verified_at = timezone.now()
+        mover.rejection_reason = ''
+        mover.save()
+        logger.info(f"Mover {mover.company_name} (id={mover.id}) approved by {request.user.email}")
+        return Response(AdminMoverProfileSerializer(mover).data)
+
+
+class AdminMoverRejectView(APIView):
+    """Admin: reject a mover."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, id):
+        serializer = MoverApprovalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        mover = get_object_or_404(MoverProfile, id=id)
+        mover.verification_status = MoverProfile.VerificationStatus.REJECTED
+        mover.rejection_reason = serializer.validated_data.get('rejection_reason', '')
+        mover.verified_at = None
+        mover.save()
+        logger.info(f"Mover {mover.company_name} (id={mover.id}) rejected by {request.user.email}")
+        return Response(AdminMoverProfileSerializer(mover).data)
+
+
+class AdminMoverSuspendView(APIView):
+    """Admin: suspend an already-approved mover."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, id):
+        serializer = MoverApprovalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        mover = get_object_or_404(MoverProfile, id=id)
+        mover.verification_status = MoverProfile.VerificationStatus.SUSPENDED
+        mover.rejection_reason = serializer.validated_data.get('rejection_reason', '')
+        mover.save()
+        logger.info(f"Mover {mover.company_name} (id={mover.id}) suspended by {request.user.email}")
+        return Response(AdminMoverProfileSerializer(mover).data)
+
+
+# ──────────────────────────────────────────────
+# Onboarding Views
+# ──────────────────────────────────────────────
+
+class OnboardingStatusView(APIView):
+    """Get mover onboarding status."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.is_mover or not hasattr(request.user, 'mover_profile'):
+            return Response({'error': 'Not a mover'}, status=status.HTTP_400_BAD_REQUEST)
+        profile = request.user.mover_profile
+        return Response({
+            'onboarding_completed': profile.onboarding_completed,
+            'onboarding_step': profile.onboarding_step,
+            'verification_status': profile.verification_status,
+            'phone_verified': request.user.phone_verified,
+        })
+
+
+class OnboardingCompleteView(APIView):
+    """Mark onboarding as complete."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not request.user.is_mover or not hasattr(request.user, 'mover_profile'):
+            return Response({'error': 'Not a mover'}, status=status.HTTP_400_BAD_REQUEST)
+        profile = request.user.mover_profile
+        profile.onboarding_completed = True
+        profile.onboarding_step = 4
+        profile.save(update_fields=['onboarding_completed', 'onboarding_step'])
+        return Response({'message': 'Onboarding completed', 'onboarding_completed': True})
+
+
+class OnboardingStepView(APIView):
+    """Update current onboarding step."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not request.user.is_mover or not hasattr(request.user, 'mover_profile'):
+            return Response({'error': 'Not a mover'}, status=status.HTTP_400_BAD_REQUEST)
+        step = request.data.get('step', 0)
+        profile = request.user.mover_profile
+        profile.onboarding_step = step
+        profile.save(update_fields=['onboarding_step'])
+        return Response({'onboarding_step': step})

@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useOrder } from '../../api/hooks'
 import { useSubmitOrder } from '../../api/hooks/useOrders'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
+import ReviewForm from '../../components/reviews/ReviewForm'
+import StarRating from '../../components/reviews/StarRating'
+import { reviewsAPI, type Review } from '../../api/endpoints/reviews'
 import type { OrderStatus as OrderStatusType } from '../../types'
 
 const statusColors: Record<OrderStatusType, string> = {
@@ -26,9 +29,21 @@ export default function OrderStatus() {
   const { orderId } = useParams()
   const isRTL = i18n.language === 'he'
 
-  const { data: order, isLoading, error } = useOrder(orderId || '')
+  const { data: order, isLoading, error, refetch } = useOrder(orderId || '')
   const submitOrderMutation = useSubmitOrder()
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [existingReview, setExistingReview] = useState<Review | null>(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
+
+  useEffect(() => {
+    if (order?.status === 'completed' && orderId) {
+      setReviewLoading(true)
+      reviewsAPI.getForOrder(orderId)
+        .then((review) => setExistingReview(review))
+        .catch(() => { /* No review yet */ })
+        .finally(() => setReviewLoading(false))
+    }
+  }, [order?.status, orderId])
 
   const handleSubmitOrder = async () => {
     if (!orderId) return
@@ -379,6 +394,39 @@ export default function OrderStatus() {
           </p>
           {order.scheduled_time && (
             <p className="text-gray-500">{order.scheduled_time}</p>
+          )}
+        </div>
+      )}
+
+      {/* Review Section - for completed orders */}
+      {order.status === 'completed' && (
+        <div className="card mb-6">
+          {reviewLoading ? (
+            <div className="flex justify-center py-4"><LoadingSpinner /></div>
+          ) : existingReview ? (
+            <div>
+              <h2 className="text-lg font-medium mb-2">
+                {isRTL ? 'הביקורת שלך' : 'Your Review'}
+              </h2>
+              <div className="flex items-center gap-2 mb-2">
+                <StarRating rating={existingReview.rating} readOnly size="md" />
+                <span className="text-sm text-gray-500">
+                  {new Date(existingReview.created_at).toLocaleDateString(isRTL ? 'he-IL' : 'en-US')}
+                </span>
+              </div>
+              {existingReview.text && (
+                <p className="text-gray-700">{existingReview.text}</p>
+              )}
+            </div>
+          ) : (
+            <ReviewForm
+              orderId={order.id}
+              onSubmitted={() => {
+                if (orderId) {
+                  reviewsAPI.getForOrder(orderId).then(setExistingReview).catch(() => {})
+                }
+              }}
+            />
           )}
         </div>
       )}

@@ -23,6 +23,8 @@ from .views import (
     GenerateComparisonView,
     SelectMoverView,
     RequestManualQuoteView,
+    CreateReviewView,
+    MoverReviewsView,
 )
 
 app_name = 'orders'
@@ -59,4 +61,8 @@ urlpatterns = [
     path('<uuid:pk>/comparison/generate/', GenerateComparisonView.as_view(), name='generate_comparison'),
     path('<uuid:pk>/comparison/select/', SelectMoverView.as_view(), name='select_mover'),
     path('<uuid:pk>/comparison/manual/', RequestManualQuoteView.as_view(), name='request_manual_quote'),
+
+    # Reviews
+    path('<uuid:pk>/review/', CreateReviewView.as_view(), name='order_review'),
+    path('mover/<uuid:mover_id>/reviews/', MoverReviewsView.as_view(), name='mover_reviews'),
 ]

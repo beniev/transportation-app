@@ -235,10 +235,16 @@ GOOGLE_OAUTH_CLIENT_SECRET = config('GOOGLE_OAUTH_CLIENT_SECRET', default='')
 GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
 GEMINI_DISABLE_SSL_VERIFY = config('GEMINI_DISABLE_SSL_VERIFY', default=False, cast=bool)
 
-# Twilio SMS
+# Twilio SMS (legacy, replaced by SMS4Free)
 TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID', default='')
 TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN', default='')
 TWILIO_PHONE_NUMBER = config('TWILIO_PHONE_NUMBER', default='')
+
+# SMS4Free (Israeli SMS provider)
+SMS4FREE_KEY = config('SMS4FREE_KEY', default='')
+SMS4FREE_USER = config('SMS4FREE_USER', default='')
+SMS4FREE_PASS = config('SMS4FREE_PASS', default='')
+SMS4FREE_SENDER = config('SMS4FREE_SENDER', default='MoversIL')
 
 # Email Settings
 EMAIL_BACKEND = config(

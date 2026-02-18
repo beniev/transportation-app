@@ -9,6 +9,7 @@ export default function AdminLayout() {
 
   const navItems = [
     { path: '/admin', label: 'Catalog', labelHe: 'קטלוג', end: true },
+    { path: '/admin/movers', label: 'Movers', labelHe: 'מובילים', end: false },
   ]
 
   return (

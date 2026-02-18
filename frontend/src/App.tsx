@@ -31,6 +31,10 @@ import CompareMovers from './pages/customer/CompareMovers'
 
 // Admin Pages
 import AdminCatalog from './pages/admin/Catalog'
+import MoverApprovals from './pages/admin/MoverApprovals'
+
+// Mover Onboarding
+import MoverOnboarding from './pages/mover/Onboarding'
 
 // Components
 import LoadingSpinner from './components/common/LoadingSpinner'
@@ -59,6 +63,15 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
         </Route>
+
+        {/* Mover Onboarding (outside MoverLayout so it has its own page) */}
+        <Route path="/mover/onboarding" element={
+          <ProtectedRoute allowedTypes={['mover']}>
+            <div className="min-h-screen bg-gray-50 p-6">
+              <MoverOnboarding />
+            </div>
+          </ProtectedRoute>
+        } />
 
         {/* Mover Routes */}
         <Route path="/mover" element={
@@ -92,6 +105,7 @@ function App() {
           </ProtectedRoute>
         }>
           <Route index element={<AdminCatalog />} />
+          <Route path="movers" element={<MoverApprovals />} />
         </Route>
 
         {/* 404 */}

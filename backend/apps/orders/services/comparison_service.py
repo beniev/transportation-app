@@ -116,8 +116,11 @@ class ComparisonService:
         # Extract order origin coordinates for radius check
         order_origin_coords = extract_coordinates(self.order.origin_coordinates)
 
-        # Get all active movers
-        movers = MoverProfile.objects.filter(is_active=True).select_related('user')
+        # Get all active AND verified movers (pending/rejected/suspended excluded)
+        movers = MoverProfile.objects.filter(
+            is_active=True,
+            is_verified=True,
+        ).select_related('user')
 
         eligible = []
         for mover in movers:

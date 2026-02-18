@@ -145,6 +145,13 @@ class MoverProfile(TimeStampedModel):
     Extended profile for movers.
     Contains business information and settings.
     """
+
+    class VerificationStatus(models.TextChoices):
+        PENDING = 'pending', _('Pending')
+        APPROVED = 'approved', _('Approved')
+        REJECTED = 'rejected', _('Rejected')
+        SUSPENDED = 'suspended', _('Suspended')
+
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
@@ -216,6 +223,10 @@ class MoverProfile(TimeStampedModel):
         _('website'),
         blank=True
     )
+    facebook_url = models.URLField(
+        _('Facebook URL'),
+        blank=True,
+    )
     description = models.TextField(
         _('description'),
         blank=True
@@ -224,11 +235,30 @@ class MoverProfile(TimeStampedModel):
         _('description (Hebrew)'),
         blank=True
     )
+
+    # Verification / Approval
     is_verified = models.BooleanField(
         _('verified'),
         default=False,
-        help_text=_('Admin verified business')
+        help_text=_('Admin verified business — synced from verification_status')
     )
+    verification_status = models.CharField(
+        _('verification status'),
+        max_length=20,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.PENDING,
+    )
+    rejection_reason = models.TextField(
+        _('rejection reason'),
+        blank=True,
+    )
+    verified_at = models.DateTimeField(
+        _('verified at'),
+        null=True,
+        blank=True,
+    )
+
+    # Stats
     rating = models.DecimalField(
         _('rating'),
         max_digits=3,
@@ -249,6 +279,33 @@ class MoverProfile(TimeStampedModel):
         help_text=_('Mover is accepting new orders')
     )
 
+    # Phone verification (for onboarding)
+    verification_code = models.CharField(
+        _('verification code'),
+        max_length=6,
+        blank=True,
+    )
+    verification_code_expires = models.DateTimeField(
+        _('verification code expires'),
+        null=True,
+        blank=True,
+    )
+    verification_attempts = models.IntegerField(
+        _('verification attempts'),
+        default=0,
+    )
+
+    # Onboarding
+    onboarding_completed = models.BooleanField(
+        _('onboarding completed'),
+        default=False,
+    )
+    onboarding_step = models.IntegerField(
+        _('onboarding step'),
+        default=0,
+        help_text=_('0=not started, 1=pricing, 2=service area, 3=phone, 4=complete'),
+    )
+
     class Meta:
         db_table = 'mover_profiles'
         verbose_name = _('mover profile')
@@ -257,11 +314,36 @@ class MoverProfile(TimeStampedModel):
     def __str__(self):
         return self.company_name
 
+    def save(self, *args, **kwargs):
+        # Sync is_verified with verification_status
+        self.is_verified = (self.verification_status == self.VerificationStatus.APPROVED)
+        super().save(*args, **kwargs)
+
     def get_company_name(self, language: str = 'en') -> str:
         """Get company name in the specified language."""
         if language == 'he' and self.company_name_he:
             return self.company_name_he
         return self.company_name
+
+    def can_request_verification(self) -> bool:
+        """Check if mover can request new verification code."""
+        if self.verification_attempts >= 5:
+            return False
+        if self.verification_code_expires:
+            return timezone.now() > self.verification_code_expires
+        return True
+
+    def update_rating(self):
+        """Recalculate average rating from all reviews."""
+        from apps.orders.models import Review
+        from django.db.models import Avg, Count
+        stats = Review.objects.filter(mover=self).aggregate(
+            avg_rating=Avg('rating'),
+            count=Count('id'),
+        )
+        self.rating = Decimal(str(stats['avg_rating'] or 0)).quantize(Decimal('0.01'))
+        self.total_reviews = stats['count']
+        self.save(update_fields=['rating', 'total_reviews'])
 
 
 class CustomerProfile(TimeStampedModel):

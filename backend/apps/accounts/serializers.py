@@ -36,17 +36,53 @@ class MoverProfileSerializer(serializers.ModelSerializer):
             'id', 'user', 'email', 'full_name', 'company_name', 'company_name_he',
             'license_number', 'tax_id', 'address', 'city', 'service_areas',
             'base_latitude', 'base_longitude', 'service_radius_km',
-            'logo', 'website', 'description', 'description_he',
-            'is_verified', 'rating', 'total_reviews', 'completed_orders',
-            'is_active', 'created_at', 'updated_at'
+            'logo', 'website', 'facebook_url', 'description', 'description_he',
+            'is_verified', 'verification_status', 'rejection_reason', 'verified_at',
+            'rating', 'total_reviews', 'completed_orders',
+            'is_active', 'onboarding_completed', 'onboarding_step',
+            'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'is_verified', 'rating', 'total_reviews',
-            'completed_orders', 'created_at', 'updated_at'
+            'id', 'is_verified', 'verification_status', 'rejection_reason',
+            'verified_at', 'rating', 'total_reviews',
+            'completed_orders', 'onboarding_completed', 'onboarding_step',
+            'created_at', 'updated_at'
         ]
 
     def get_full_name(self, obj):
         return obj.user.get_full_name()
+
+
+class AdminMoverProfileSerializer(serializers.ModelSerializer):
+    """Full mover profile serializer for admin use."""
+    user = UserSerializer(read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    full_name = serializers.SerializerMethodField()
+    phone = serializers.CharField(source='user.phone', read_only=True)
+
+    class Meta:
+        model = MoverProfile
+        fields = [
+            'id', 'user', 'email', 'phone', 'full_name',
+            'company_name', 'company_name_he',
+            'license_number', 'tax_id', 'address', 'city',
+            'website', 'facebook_url', 'description', 'description_he',
+            'logo', 'is_verified', 'verification_status',
+            'rejection_reason', 'verified_at',
+            'rating', 'total_reviews', 'completed_orders',
+            'is_active', 'onboarding_completed',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = fields
+
+    def get_full_name(self, obj):
+        return obj.user.get_full_name()
+
+
+class MoverApprovalSerializer(serializers.Serializer):
+    """Serializer for mover approval/rejection actions."""
+    rejection_reason = serializers.CharField(required=False, allow_blank=True)
+    admin_notes = serializers.CharField(required=False, allow_blank=True)
 
 
 class CustomerProfileSerializer(serializers.ModelSerializer):

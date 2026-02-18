@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 
-from .models import Order, OrderItem, OrderImage, OrderComparison
+from .models import Order, OrderItem, OrderImage, OrderComparison, Review
 from .serializers import (
     OrderListSerializer,
     OrderDetailSerializer,
@@ -19,6 +19,8 @@ from .serializers import (
     OrderScheduleSerializer,
     OrderComparisonSerializer,
     SelectMoverSerializer,
+    ReviewSerializer,
+    ReviewCreateSerializer,
 )
 from .services.comparison_service import ComparisonService
 
@@ -463,3 +465,68 @@ class RequestManualQuoteView(APIView):
         order.save(update_fields=['status'])
 
         return Response(OrderDetailSerializer(order).data)
+
+
+# ──────────────────────────────────────────────
+# Review Views
+# ──────────────────────────────────────────────
+
+class CreateReviewView(APIView):
+    """Customer creates a review for a completed order."""
+    permission_classes = [IsCustomer]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk, customer=request.user)
+
+        if order.status != Order.Status.COMPLETED:
+            return Response(
+                {'error': 'Can only review completed orders'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not order.mover:
+            return Response(
+                {'error': 'Order has no mover assigned'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if hasattr(order, 'review'):
+            return Response(
+                {'error': 'Review already exists for this order'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = ReviewCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        review = Review.objects.create(
+            order=order,
+            customer=request.user,
+            mover=order.mover,
+            rating=serializer.validated_data['rating'],
+            text=serializer.validated_data.get('text', ''),
+        )
+
+        return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
+
+    def get(self, request, pk):
+        """Get the review for an order (if exists)."""
+        order = get_object_or_404(Order, pk=pk, customer=request.user)
+        try:
+            review = order.review
+        except Review.DoesNotExist:
+            return Response(
+                {'error': 'No review for this order'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(ReviewSerializer(review).data)
+
+
+class MoverReviewsView(generics.ListAPIView):
+    """List all reviews for a mover (public)."""
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        mover_id = self.kwargs['mover_id']
+        return Review.objects.filter(mover_id=mover_id).select_related('customer')

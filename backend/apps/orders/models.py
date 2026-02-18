@@ -1,10 +1,10 @@
 """
 Models for the orders app.
-Contains Order and OrderItem models.
+Contains Order, OrderItem, and Review models.
 """
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
 
 from apps.core.models import TimeStampedModel
@@ -727,3 +727,50 @@ class ComparisonEntry(TimeStampedModel):
 
     def __str__(self):
         return f"#{self.rank} {self.mover_company_name} - ₪{self.total_price}"
+
+
+class Review(TimeStampedModel):
+    """
+    Customer review for a completed order.
+    One review per order. Auto-updates mover average rating on save.
+    """
+    order = models.OneToOneField(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='review',
+        verbose_name=_('order'),
+    )
+    customer = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.CASCADE,
+        related_name='reviews_given',
+        verbose_name=_('customer'),
+    )
+    mover = models.ForeignKey(
+        'accounts.MoverProfile',
+        on_delete=models.CASCADE,
+        related_name='reviews',
+        verbose_name=_('mover'),
+    )
+    rating = models.PositiveIntegerField(
+        _('rating'),
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    text = models.TextField(
+        _('review text'),
+        blank=True,
+    )
+
+    class Meta:
+        db_table = 'reviews'
+        verbose_name = _('review')
+        verbose_name_plural = _('reviews')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Review by {self.customer.email} - {self.rating}★"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Auto-update mover's aggregate rating
+        self.mover.update_rating()
