@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+echo "=== Auto-generating any missing migrations ==="
+python manage.py makemigrations --noinput 2>&1
+
 echo "=== Running migrations ==="
 python manage.py migrate --noinput 2>&1
 
