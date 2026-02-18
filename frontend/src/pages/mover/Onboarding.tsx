@@ -8,7 +8,7 @@ import { useAuth } from '../../contexts/AuthContext'
 type Step = 0 | 1 | 2 | 3 | 4
 
 export default function MoverOnboarding() {
-  const { t, i18n } = useTranslation()
+  const { i18n } = useTranslation()
   const isRTL = i18n.language === 'he'
   const navigate = useNavigate()
   const { user } = useAuth()

@@ -29,7 +29,7 @@ export default function OrderStatus() {
   const { orderId } = useParams()
   const isRTL = i18n.language === 'he'
 
-  const { data: order, isLoading, error, refetch } = useOrder(orderId || '')
+  const { data: order, isLoading, error } = useOrder(orderId || '')
   const submitOrderMutation = useSubmitOrder()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [existingReview, setExistingReview] = useState<Review | null>(null)
