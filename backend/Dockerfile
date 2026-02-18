@@ -22,11 +22,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Collect static files
-RUN python manage.py collectstatic --noinput 2>/dev/null || true
+# Fix line endings (Windows CRLF → Unix LF) and make executable
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 # Expose port
 EXPOSE 8000
 
-# Run with gunicorn
-CMD gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --timeout 120
+# Use entrypoint script
+CMD ["./entrypoint.sh"]
