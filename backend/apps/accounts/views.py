@@ -110,16 +110,43 @@ class GoogleAuthView(APIView):
                 else:
                     CustomerProfile.objects.create(user=user)
             else:
-                # Update name from Google if missing locally
-                updated = False
+                # Update user info from Google
+                update_fields = []
                 if not user.first_name and first_name:
                     user.first_name = first_name
-                    updated = True
+                    update_fields.append('first_name')
                 if not user.last_name and last_name:
                     user.last_name = last_name
-                    updated = True
-                if updated:
-                    user.save(update_fields=['first_name', 'last_name'])
+                    update_fields.append('last_name')
+
+                # If user_type was explicitly provided and is different, switch role
+                if user_type and user.user_type != user_type:
+                    old_type = user.user_type
+                    user.user_type = user_type
+                    update_fields.append('user_type')
+
+                    # Delete old profile and create new one
+                    if old_type == 'mover' and hasattr(user, 'mover_profile'):
+                        user.mover_profile.delete()
+                    elif old_type == 'customer' and hasattr(user, 'customer_profile'):
+                        user.customer_profile.delete()
+
+                    # Create new profile for the new role
+                    if user_type == 'mover':
+                        MoverProfile.objects.get_or_create(
+                            user=user,
+                            defaults={
+                                'company_name': f"{user.first_name} {user.last_name}".strip() or email.split('@')[0],
+                                'company_name_he': f"{user.first_name} {user.last_name}".strip() or email.split('@')[0],
+                            }
+                        )
+                    else:
+                        CustomerProfile.objects.get_or_create(user=user)
+
+                    logger.info(f"GoogleAuthView: User {email} switched from {old_type} to {user_type}")
+
+                if update_fields:
+                    user.save(update_fields=update_fields)
 
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
