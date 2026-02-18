@@ -58,7 +58,21 @@
       "Bash(git init:*)",
       "Bash(git add:*)",
       "Bash(git rm:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: Transportation/Moving app\n\nFull-stack moving services application with:\n- Django REST backend \\(PostgreSQL, Celery, JWT auth, Gemini AI\\)\n- React/TypeScript frontend \\(Vite, Tailwind, i18next\\)\n- Bilingual support \\(Hebrew/English\\) with RTL\n- Docker deployment files for Railway\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: Transportation/Moving app\n\nFull-stack moving services application with:\n- Django REST backend \\(PostgreSQL, Celery, JWT auth, Gemini AI\\)\n- React/TypeScript frontend \\(Vite, Tailwind, i18next\\)\n- Bilingual support \\(Hebrew/English\\) with RTL\n- Docker deployment files for Railway\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git branch:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git credential fill:*)",
+      "Bash(printf:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd health check endpoint and Railway production config\n\n- Add /api/v1/health/ endpoint for Railway health checks\n- Update production settings: DATABASE_URL support, proxy SSL header, CSRF trusted origins\n- Disable SECURE_SSL_REDIRECT \\(Railway handles SSL at proxy\\)\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd railway.json config\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(claude mcp add railway-mcp-server --env RAILWAY_TOKEN=ea9a1c69-012c-45e8-8136-e1cba8e4bb7d -- npx -y @railway/mcp-server)",
+      "Bash(claude mcp list:*)",
+      "Bash(claude mcp get:*)",
+      "Bash(# Send JSON-RPC initialize and then list tools via Railway MCP server echo ''{\"\"jsonrpc\"\":\"\"2.0\"\",\"\"id\"\":1,\"\"method\"\":\"\"initialize\"\",\"\"params\"\":{\"\"protocolVersion\"\":\"\"2024-11-05\"\",\"\"capabilities\"\":{},\"\"clientInfo\"\":{\"\"name\"\":\"\"test\"\",\"\"version\"\":\"\"1.0\"\"}}}'' | RAILWAY_TOKEN=ea9a1c69-012c-45e8-8136-e1cba8e4bb7d npx -y @railway/mcp-server)",
+      "Bash(RAILWAY_TOKEN=ea9a1c69-012c-45e8-8136-e1cba8e4bb7d npx:*)",
+      "Bash(npx @railway/cli:*)"
     ]
   }
 }
