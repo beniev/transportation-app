@@ -42,8 +42,8 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
-# Static files
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+# Static files — use simple storage (ManifestStaticFilesStorage can crash on missing refs)
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # Logging
 LOGGING = {
