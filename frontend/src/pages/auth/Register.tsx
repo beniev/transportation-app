@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
@@ -56,6 +56,7 @@ export default function Register() {
   const { register: registerUser, loginWithGoogle } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [userType, setUserType] = useState<'mover' | 'customer'>('customer')
+  const userTypeRef = useRef<'mover' | 'customer'>('customer')
   const [googleLoaded, setGoogleLoaded] = useState(false)
 
   const { register, handleSubmit, formState: { errors }, watch } = useForm<RegisterForm>({
@@ -111,10 +112,11 @@ export default function Register() {
   }, [googleLoaded, i18n.language, userType])
 
   const handleGoogleCallback = async (response: GoogleCredentialResponse) => {
-    console.log('Google callback - userType:', userType)
+    const currentUserType = userTypeRef.current
+    console.log('Google callback - userType:', currentUserType)
     setIsLoading(true)
     try {
-      await loginWithGoogle(response.credential, userType)
+      await loginWithGoogle(response.credential, currentUserType)
       toast.success(t('common.success'))
     } catch (error: any) {
       console.error('Google signup error:', error)
@@ -147,7 +149,7 @@ export default function Register() {
       <div className="flex gap-4 mb-6">
         <button
           type="button"
-          onClick={() => setUserType('customer')}
+          onClick={() => { setUserType('customer'); userTypeRef.current = 'customer' }}
           className={`flex-1 py-3 rounded-lg border-2 font-medium transition-colors ${
             userType === 'customer'
               ? 'border-blue-500 bg-blue-50 text-blue-700'
@@ -158,7 +160,7 @@ export default function Register() {
         </button>
         <button
           type="button"
-          onClick={() => setUserType('mover')}
+          onClick={() => { setUserType('mover'); userTypeRef.current = 'mover' }}
           className={`flex-1 py-3 rounded-lg border-2 font-medium transition-colors ${
             userType === 'mover'
               ? 'border-green-500 bg-green-50 text-green-700'
