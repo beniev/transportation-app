@@ -8,15 +8,11 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.production
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies (for psycopg2, weasyprint, etc.)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     build-essential \
     libpq-dev \
-    libffi-dev \
-    libcairo2 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
