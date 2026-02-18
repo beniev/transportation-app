@@ -19,7 +19,7 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
+# Copy project (cache-bust: migrations v2)
 COPY . .
 
 # Fix line endings (Windows CRLF → Unix LF) and make executable
