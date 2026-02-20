@@ -19,24 +19,44 @@ class ItemParserService:
     Matches items to known item types where possible.
     """
 
-    SYSTEM_PROMPT = """You are an expert moving items analyzer. Your task is to parse customer descriptions
-of items they want to move and extract structured information.
+    SYSTEM_PROMPT = """You are an expert moving items analyzer for an Israeli moving company platform.
+Your task is to parse customer descriptions of items they want to move and extract DETAILED structured information.
 
 For each item mentioned, identify:
-1. The item name (in the language provided and in English)
-2. Quantity (default 1 if not specified)
-3. Category (furniture, electronics, appliances, etc.)
+1. The item name (in Hebrew AND English)
+2. Exact quantity (default 1 if not specified)
+3. Category (furniture, electronics, appliances, boxes, special, outdoor, etc.)
 4. Room location if mentioned
-5. Whether it needs assembly/disassembly
-6. Whether it's fragile or needs special handling
-7. Any special notes
+5. Assembly/disassembly needs — READ THE DESCRIPTION CAREFULLY:
+   - If customer says "צריכה פירוק" / "needs disassembly" / "לפרק" → requires_disassembly=true
+   - If customer says "הרכבה" / "assembly" / "להרכיב" → requires_assembly=true
+   - For large furniture (wardrobes, beds, tables) that TYPICALLY need disassembly for moving, set requires_disassembly=true
+   - If disassembly is needed, usually assembly is also needed at destination → set both
+6. Fragile / special handling:
+   - Glass items, electronics, TVs, mirrors → is_fragile=true
+   - Very heavy items (piano, safe, marble table) → requires_special_handling=true
+   - Living things (plants, aquarium with fish) → requires_special_handling=true, is_fragile=true
+   - Large/awkward items (L-shape sofa, piano) → requires_special_handling=true
+7. Special notes — CAPTURE EVERYTHING the customer mentions:
+   - Weight/dimensions ("230 kg", "2.5 meters")
+   - Brand/model ("Samsung", "Yamaha U1")
+   - Specific concerns ("doesn't fit in elevator", "might need crane")
+   - Conditions ("narrow staircase", "no elevator, 5th floor")
+   - Questions the customer asks ("do you disassemble?", "is this realistic?")
 
-IMPORTANT:
-- Support both Hebrew and English input
-- Be thorough - don't miss any items
-- If quantities are vague (like "a few"), estimate reasonably
-- Identify items that need clarification (size, type, etc.)
-- Group similar items when appropriate
+QUANTITY RULES:
+- "50+" or "יותר מ-50" → quantity=50, add note "50+"
+- "כ-30" or "~30" or "about 30" → quantity=30
+- "כמה" or "a few" → quantity=3
+- NEVER round up beyond what customer said
+
+CLARIFICATION QUESTIONS — Generate questions when:
+- Wardrobe/closet without door count or type (sliding/hinged/corner)
+- Bed without size specification (single/double/king)
+- "boxes" without mentioning what's inside or approximate size
+- Heavy items without weight estimate
+- Items where customer asks a question ("do you handle this?", "is a crane needed?")
+- Storage mentioned without clear details
 
 Always respond in valid JSON format."""
 
@@ -88,7 +108,7 @@ Always respond in valid JSON format."""
 
         item_types = self._get_item_types()
 
-        prompt = f"""Analyze the following moving description and extract all items.
+        prompt = f"""Analyze the following moving description and extract ALL items with FULL details.
 
 Available known item types for matching:
 {json.dumps(list(item_types.values()), ensure_ascii=False, indent=2)}
@@ -111,7 +131,7 @@ Extract items and return JSON in this exact format:
             "requires_assembly": false,
             "is_fragile": false,
             "requires_special_handling": false,
-            "special_notes": "",
+            "special_notes": "weight, dimensions, brand, model, customer concerns — capture EVERYTHING",
             "confidence": 0.95
         }}
     ],
@@ -123,18 +143,33 @@ Extract items and return JSON in this exact format:
             "reason": "why clarification is needed"
         }}
     ],
+    "clarification_questions": [
+        {{
+            "item_index": 0,
+            "question_en": "How many doors does the wardrobe have?",
+            "question_he": "כמה דלתות יש לארון?",
+            "type": "variant_detail"
+        }}
+    ],
     "summary": {{
         "total_items": 0,
         "rooms_mentioned": [],
-        "special_requirements": []
+        "special_requirements": ["list ALL special requirements: crane, window removal, storage, etc."]
     }}
 }}
 
-Important:
+CRITICAL RULES:
 - Match items to known types when possible using matched_item_type_id
 - Confidence score 0-1 indicates how sure you are about the item identification
-- Include clarification questions for vague items (size, type, quantity unclear)
-- Be thorough and don't miss any items mentioned
+- READ the description carefully for assembly/disassembly mentions — if customer says "צריכה פירוק" set requires_disassembly=true for THAT item
+- Large furniture (wardrobes, beds, large tables) → requires_disassembly=true + requires_assembly=true by default
+- Pianos, safes, very heavy items → requires_special_handling=true
+- TVs, glass, aquariums, electronics → is_fragile=true
+- Living things (fish, plants) → is_fragile=true + requires_special_handling=true
+- Put ALL details in special_notes: weight, brand, dimensions, customer questions, concerns
+- Generate clarification_questions for items missing key info (wardrobe door count, bed size, box contents)
+- If customer asks questions in description, echo them in special_requirements
+- NEVER inflate quantities — "50+" means 50, not 60
 """
 
         result = self.client.generate_json(prompt, self.SYSTEM_PROMPT)
@@ -207,6 +242,7 @@ Important:
             'items': validated_items,
             'needs_clarification': result.get('needs_clarification', []),
             'variant_clarifications': variant_clarifications,
+            'clarification_questions': result.get('clarification_questions', []),
             'summary': result.get('summary', {}),
         }
 

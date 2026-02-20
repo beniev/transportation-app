@@ -22,12 +22,20 @@ interface LocalParsedItem {
   is_generic?: boolean
   requires_variant_clarification?: boolean
   default_base_price?: string
+  // Enhanced fields
+  requires_disassembly?: boolean
+  requires_assembly?: boolean
+  is_fragile?: boolean
+  requires_special_handling?: boolean
+  special_notes?: string
+  room?: string
 }
 
 // Local parse result that uses LocalParsedItem instead of ParsedItem
 interface LocalParseResult {
   items: LocalParsedItem[]
   clarifying_questions: any[]
+  clarification_questions?: { item_index: number; question_he: string; question_en: string; type: string }[]
   suggestions?: any[]
   variant_clarifications: VariantClarification[]
   needs_clarification?: any[]
@@ -49,7 +57,12 @@ export default function CreateOrder() {
   const [orderId, setOrderId] = useState<string | null>(null)
   const [parseResult, setParseResult] = useState<LocalParseResult | null>(null)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState({ name: '', quantity: 1 })
+  const [editForm, setEditForm] = useState({
+    name: '', quantity: 1,
+    requires_disassembly: false, requires_assembly: false,
+    is_fragile: false, requires_special_handling: false,
+    special_notes: '', room: '',
+  })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [orderData, setOrderData] = useState<CreateOrderData>({
     origin_address: '',
@@ -330,6 +343,12 @@ export default function CreateOrder() {
           is_generic: item.is_generic || false,
           requires_variant_clarification: item.requires_variant_clarification || false,
           default_base_price: item.default_base_price,
+          requires_disassembly: item.requires_disassembly || false,
+          requires_assembly: item.requires_assembly || false,
+          is_fragile: item.is_fragile || false,
+          requires_special_handling: item.requires_special_handling || false,
+          special_notes: item.special_notes || '',
+          room: item.room || '',
         }))
         console.log('Mapped items:', mappedItems)
 
@@ -342,8 +361,10 @@ export default function CreateOrder() {
         const newParseResult: LocalParseResult = {
           items: finalItems,
           clarifying_questions: result.needs_clarification || [],
+          clarification_questions: result.clarification_questions || [],
           suggestions: (result as any).suggestions || [],
           variant_clarifications: result.variant_clarifications || [],
+          summary: result.summary || {},
         }
         console.log('Setting parseResult to:', newParseResult)
         setParseResult(newParseResult)
@@ -403,6 +424,13 @@ export default function CreateOrder() {
             name: item.item_name || 'פריט',
             quantity: item.quantity,
             item_type: item.item_type || undefined,
+            requires_assembly: item.requires_assembly || false,
+            requires_disassembly: item.requires_disassembly || false,
+            is_fragile: item.is_fragile || false,
+            requires_special_handling: item.requires_special_handling || false,
+            description: item.special_notes || '',
+            room_name: item.room || '',
+            ai_confidence: item.confidence || 0,
           },
         })
       }
@@ -438,7 +466,15 @@ export default function CreateOrder() {
   const handleEditItem = (index: number) => {
     if (!parseResult) return
     const item = parseResult.items[index]
-    setEditForm({ name: item.item_name, quantity: item.quantity })
+    setEditForm({
+      name: item.item_name, quantity: item.quantity,
+      requires_disassembly: item.requires_disassembly || false,
+      requires_assembly: item.requires_assembly || false,
+      is_fragile: item.is_fragile || false,
+      requires_special_handling: item.requires_special_handling || false,
+      special_notes: item.special_notes || '',
+      room: item.room || '',
+    })
     setEditingIndex(index)
   }
 
@@ -450,6 +486,12 @@ export default function CreateOrder() {
       ...updatedItems[editingIndex],
       item_name: editForm.name,
       quantity: editForm.quantity,
+      requires_disassembly: editForm.requires_disassembly,
+      requires_assembly: editForm.requires_assembly,
+      is_fragile: editForm.is_fragile,
+      requires_special_handling: editForm.requires_special_handling,
+      special_notes: editForm.special_notes,
+      room: editForm.room,
     }
 
     setParseResult({ ...parseResult, items: updatedItems })
@@ -471,10 +513,21 @@ export default function CreateOrder() {
       confidence: 1,
       requires_clarification: false,
       is_generic: false,
+      requires_disassembly: false,
+      requires_assembly: false,
+      is_fragile: false,
+      requires_special_handling: false,
+      special_notes: '',
+      room: '',
     }
     setParseResult({ ...parseResult, items: [...parseResult.items, newItem] } as LocalParseResult)
     // Immediately edit the new item
-    setEditForm({ name: newItem.item_name, quantity: newItem.quantity })
+    setEditForm({
+      name: newItem.item_name, quantity: newItem.quantity,
+      requires_disassembly: false, requires_assembly: false,
+      is_fragile: false, requires_special_handling: false,
+      special_notes: '', room: '',
+    })
     setEditingIndex(parseResult.items.length)
   }
 
@@ -773,48 +826,112 @@ export default function CreateOrder() {
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
                   {editingIndex === index ? (
-                    // Edit mode
-                    <div className="flex items-center gap-2 flex-1">
-                      <input
-                        type="text"
-                        value={editForm.name}
-                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                        className="input flex-1"
-                        autoFocus
-                      />
-                      <input
-                        type="number"
-                        value={editForm.quantity}
-                        onChange={(e) => setEditForm({ ...editForm, quantity: parseInt(e.target.value) || 1 })}
-                        className="input w-20"
-                        min={1}
-                      />
-                      <button
-                        onClick={handleSaveEdit}
-                        className="btn btn-primary text-sm px-3"
-                      >
-                        שמור
-                      </button>
-                      <button
-                        onClick={() => setEditingIndex(null)}
-                        className="btn btn-secondary text-sm px-3"
-                      >
-                        בטל
-                      </button>
+                    // Edit mode — full item editing
+                    <div className="flex-1 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          className="input flex-1"
+                          placeholder={isRTL ? 'שם הפריט' : 'Item name'}
+                          autoFocus
+                        />
+                        <input
+                          type="number"
+                          value={editForm.quantity}
+                          onChange={(e) => setEditForm({ ...editForm, quantity: parseInt(e.target.value) || 1 })}
+                          className="input w-20"
+                          min={1}
+                        />
+                      </div>
+                      {/* Toggle flags */}
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { key: 'requires_disassembly' as const, label: '🔧 פירוק', labelEn: '🔧 Disassembly' },
+                          { key: 'requires_assembly' as const, label: '🔩 הרכבה', labelEn: '🔩 Assembly' },
+                          { key: 'is_fragile' as const, label: '⚠️ שביר', labelEn: '⚠️ Fragile' },
+                          { key: 'requires_special_handling' as const, label: '🏗️ טיפול מיוחד', labelEn: '🏗️ Special' },
+                        ].map(({ key, label, labelEn }) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setEditForm({ ...editForm, [key]: !editForm[key] })}
+                            className={`text-xs px-2 py-1 rounded-full border transition-colors ${
+                              editForm[key]
+                                ? 'bg-blue-100 border-blue-400 text-blue-800'
+                                : 'bg-gray-50 border-gray-300 text-gray-500'
+                            }`}
+                          >
+                            {isRTL ? label : labelEn}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Room + notes */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editForm.room}
+                          onChange={(e) => setEditForm({ ...editForm, room: e.target.value })}
+                          className="input w-32 text-sm"
+                          placeholder={isRTL ? '📍 חדר' : '📍 Room'}
+                        />
+                        <input
+                          type="text"
+                          value={editForm.special_notes}
+                          onChange={(e) => setEditForm({ ...editForm, special_notes: e.target.value })}
+                          className="input flex-1 text-sm"
+                          placeholder={isRTL ? '💬 הערות (משקל, מידות, מותג...)' : '💬 Notes (weight, dimensions, brand...)'}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={handleSaveEdit} className="btn btn-primary text-sm px-3">
+                          {isRTL ? 'שמור' : 'Save'}
+                        </button>
+                        <button onClick={() => setEditingIndex(null)} className="btn btn-secondary text-sm px-3">
+                          {isRTL ? 'בטל' : 'Cancel'}
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    // View mode
+                    // View mode — show tags + notes
                     <>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{item.item_name}</span>
-                        <span className="text-gray-500">x{item.quantity}</span>
-                        {itemNeedsClarification(item, index) && (
-                          <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full">
-                            {isRTL ? 'דורש הבהרה' : 'Needs clarification'}
-                          </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium">{item.item_name}</span>
+                          <span className="text-gray-500">x{item.quantity}</span>
+                          {itemNeedsClarification(item, index) && (
+                            <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full">
+                              {isRTL ? 'דורש הבהרה' : 'Needs clarification'}
+                            </span>
+                          )}
+                        </div>
+                        {/* Item detail tags */}
+                        {(item.requires_disassembly || item.requires_assembly || item.is_fragile || item.requires_special_handling || item.room) && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {item.requires_disassembly && (
+                              <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">🔧 {isRTL ? 'פירוק' : 'Disassembly'}</span>
+                            )}
+                            {item.requires_assembly && (
+                              <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">🔩 {isRTL ? 'הרכבה' : 'Assembly'}</span>
+                            )}
+                            {item.is_fragile && (
+                              <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">⚠️ {isRTL ? 'שביר' : 'Fragile'}</span>
+                            )}
+                            {item.requires_special_handling && (
+                              <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full">🏗️ {isRTL ? 'טיפול מיוחד' : 'Special handling'}</span>
+                            )}
+                            {item.room && (
+                              <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">📍 {item.room}</span>
+                            )}
+                          </div>
+                        )}
+                        {/* Special notes */}
+                        {item.special_notes && (
+                          <p className="text-xs text-gray-500 mt-1">💬 {item.special_notes}</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         {itemNeedsClarification(item, index) ? (
                           <button
                             onClick={() => {
@@ -892,12 +1009,55 @@ export default function CreateOrder() {
             </div>
           )}
 
+          {/* AI clarification questions for specific items */}
+          {parseResult.clarification_questions && parseResult.clarification_questions.length > 0 && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="font-medium text-blue-800 mb-2">
+                {isRTL ? '❓ שאלות להשלמת פרטים' : '❓ Questions for Better Pricing'}
+              </h3>
+              <div className="space-y-2">
+                {parseResult.clarification_questions.map((q, i) => {
+                  const item = parseResult.items[q.item_index]
+                  return (
+                    <div key={i} className="flex items-start gap-2 text-sm">
+                      <span className="text-blue-600 font-medium shrink-0">
+                        {item ? item.item_name : `#${q.item_index + 1}`}:
+                      </span>
+                      <span className="text-blue-700">{isRTL ? q.question_he : q.question_en}</span>
+                      <button
+                        onClick={() => handleEditItem(q.item_index)}
+                        className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 shrink-0"
+                      >
+                        {isRTL ? 'ערוך' : 'Edit'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* General clarification questions */}
           {parseResult.clarifying_questions.length > 0 && (
             <div className="mt-4 p-4 bg-yellow-50 rounded-lg">
               <h3 className="font-medium text-yellow-800 mb-2">{t('orders.clarifyingQuestions')}</h3>
               <ul className="list-disc list-inside text-yellow-700">
                 {parseResult.clarifying_questions.map((q, i) => (
                   <li key={i}>{typeof q === 'string' ? q : q.question_he || q.question_en}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Summary: special requirements */}
+          {parseResult.summary?.special_requirements && parseResult.summary.special_requirements.length > 0 && (
+            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <h3 className="font-medium text-amber-800 mb-2">
+                {isRTL ? '⚡ דרישות מיוחדות שזוהו' : '⚡ Special Requirements Detected'}
+              </h3>
+              <ul className="list-disc list-inside text-amber-700 text-sm">
+                {parseResult.summary.special_requirements.map((req, i) => (
+                  <li key={i}>{req}</li>
                 ))}
               </ul>
             </div>
