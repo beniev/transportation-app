@@ -240,10 +240,14 @@ export interface AddOrderItemData {
   name?: string
   quantity: number
   requires_assembly?: boolean
+  requires_disassembly?: boolean
   is_fragile?: boolean
+  requires_special_handling?: boolean
   room_name?: string
   room_floor?: number
   notes?: string
+  description?: string
+  ai_confidence?: number
 }
 
 export interface ParsedItem {
@@ -277,6 +281,12 @@ export interface AIParseResult {
     reason?: string
   }[]
   variant_clarifications: VariantClarification[]
+  clarification_questions?: {
+    item_index: number
+    question_en: string
+    question_he: string
+    type: string
+  }[]
   summary: {
     total_items?: number
     rooms_mentioned?: string[]
