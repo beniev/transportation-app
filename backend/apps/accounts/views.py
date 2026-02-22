@@ -51,7 +51,7 @@ class GoogleAuthView(APIView):
         logger = logging.getLogger(__name__)
 
         credential = request.data.get('credential')
-        user_type = request.data.get('user_type', 'customer')  # 'customer' or 'mover'
+        user_type = request.data.get('user_type')  # None if not provided (login), 'customer'/'mover' if provided (register)
         logger.info(f"GoogleAuthView: user_type from request = {user_type}")
 
         if not credential:
@@ -95,19 +95,22 @@ class GoogleAuthView(APIView):
                 )
 
             # Get or create user
+            # For new users: use provided user_type or default to 'customer'
+            effective_user_type = user_type or 'customer'
+
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={
                     'first_name': first_name,
                     'last_name': last_name,
-                    'user_type': user_type,  # 'mover' or 'customer'
+                    'user_type': effective_user_type,
                     'email_verified': True,  # Google already verified email
                 }
             )
 
             if created:
                 # Create appropriate profile for new user
-                if user_type == 'mover':
+                if effective_user_type == 'mover':
                     MoverProfile.objects.create(
                         user=user,
                         company_name=f"{first_name} {last_name}",
@@ -115,8 +118,9 @@ class GoogleAuthView(APIView):
                     )
                 else:
                     CustomerProfile.objects.create(user=user)
+                logger.info(f"GoogleAuthView: Created new {effective_user_type} user: {email}")
             else:
-                # Update user info from Google
+                # Existing user — update name if missing
                 update_fields = []
                 if not user.first_name and first_name:
                     user.first_name = first_name
@@ -125,7 +129,8 @@ class GoogleAuthView(APIView):
                     user.last_name = last_name
                     update_fields.append('last_name')
 
-                # If user_type was explicitly provided and is different, switch role
+                # Only switch role if user_type was EXPLICITLY provided (from Register page)
+                # When user_type is None (from Login page), keep existing role
                 if user_type and user.user_type != user_type:
                     old_type = user.user_type
                     user.user_type = user_type

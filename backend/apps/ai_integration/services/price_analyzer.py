@@ -81,6 +81,27 @@ class PriceAnalyzerService:
         }
 
         if not item_type_id:
+            # Apply default pricing for uncataloged/unknown items
+            # so they contribute to the order total instead of being free
+            DEFAULT_UNKNOWN_ITEM_PRICE = Decimal('50.00')
+            DEFAULT_ASSEMBLY_PRICE = Decimal('30.00')
+            DEFAULT_DISASSEMBLY_PRICE = Decimal('30.00')
+            DEFAULT_SPECIAL_HANDLING_PRICE = Decimal('40.00')
+
+            result['unit_price'] = DEFAULT_UNKNOWN_ITEM_PRICE
+            if requires_assembly:
+                result['assembly_cost'] = DEFAULT_ASSEMBLY_PRICE
+            if requires_disassembly:
+                result['disassembly_cost'] = DEFAULT_DISASSEMBLY_PRICE
+            if requires_special_handling:
+                result['special_handling_cost'] = DEFAULT_SPECIAL_HANDLING_PRICE
+
+            result['total'] = (
+                (result['unit_price'] * quantity) +
+                result['assembly_cost'] +
+                result['disassembly_cost'] +
+                result['special_handling_cost']
+            )
             return result
 
         # Get mover's pricing for this item

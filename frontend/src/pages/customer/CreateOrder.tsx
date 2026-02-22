@@ -1075,10 +1075,14 @@ export default function CreateOrder() {
             </button>
             <button
               onClick={handleConfirmItems}
-              disabled={isSubmitting || parseResult.items.length === 0}
+              disabled={isSubmitting || parseResult.items.length === 0 || variantClarifications.length > 0}
               className="btn btn-primary flex-1"
+              title={variantClarifications.length > 0 ? (isRTL ? 'יש פריטים שדורשים הבהרה לפני אישור' : 'Some items need clarification before confirming') : ''}
             >
-              {isSubmitting ? <LoadingSpinner /> : t('orders.confirmItems')}
+              {isSubmitting ? <LoadingSpinner /> : variantClarifications.length > 0
+                ? (isRTL ? `נותרו ${variantClarifications.length} פריטים להבהרה` : `${variantClarifications.length} items need clarification`)
+                : t('orders.confirmItems')
+              }
             </button>
           </div>
         </div>
