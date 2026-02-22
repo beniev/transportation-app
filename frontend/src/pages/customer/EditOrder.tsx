@@ -80,12 +80,16 @@ export default function EditOrder() {
         origin_city: order.origin_city || '',
         origin_floor: order.origin_floor || 0,
         origin_has_elevator: order.origin_has_elevator || false,
-        origin_coordinates: order.origin_coordinates || null,
+        origin_coordinates: order.origin_coordinates && 'lat' in order.origin_coordinates
+          ? { lat: order.origin_coordinates.lat, lng: order.origin_coordinates.lng }
+          : null,
         destination_address: order.destination_address || '',
         destination_city: order.destination_city || '',
         destination_floor: order.destination_floor || 0,
         destination_has_elevator: order.destination_has_elevator || false,
-        destination_coordinates: order.destination_coordinates || null,
+        destination_coordinates: order.destination_coordinates && 'lat' in order.destination_coordinates
+          ? { lat: order.destination_coordinates.lat, lng: order.destination_coordinates.lng }
+          : null,
         date_flexibility: (order.date_flexibility as 'specific' | 'range') || 'specific',
         preferred_date: order.preferred_date || '',
         preferred_date_end: order.preferred_date_end || '',
