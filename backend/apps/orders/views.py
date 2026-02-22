@@ -13,6 +13,7 @@ from .serializers import (
     OrderDetailSerializer,
     OrderCreateSerializer,
     OrderUpdateSerializer,
+    CustomerOrderUpdateSerializer,
     OrderItemSerializer,
     OrderImageSerializer,
     OrderStatusUpdateSerializer,
@@ -136,6 +137,8 @@ class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:
+            if self.request.user.is_customer:
+                return CustomerOrderUpdateSerializer
             return OrderUpdateSerializer
         return OrderDetailSerializer
 

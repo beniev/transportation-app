@@ -100,15 +100,23 @@ export default function OrderStatus() {
               {submitError}
             </div>
           )}
-          <button
-            onClick={handleSubmitOrder}
-            disabled={submitOrderMutation.isPending}
-            className="inline-flex items-center px-8 py-3 text-lg font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg"
-          >
-            {submitOrderMutation.isPending
-              ? (isRTL ? '⏳ שולח...' : '⏳ Submitting...')
-              : (isRTL ? '🚚 שלח למובילים' : '🚚 Send to Movers')}
-          </button>
+          <div className="flex gap-3 justify-center flex-wrap">
+            <Link
+              to={`/order/edit/${order.id}`}
+              className="inline-flex items-center px-6 py-3 text-lg font-semibold text-blue-700 bg-blue-50 border-2 border-blue-300 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-colors"
+            >
+              {isRTL ? '✏️ ערוך הזמנה' : '✏️ Edit Order'}
+            </Link>
+            <button
+              onClick={handleSubmitOrder}
+              disabled={submitOrderMutation.isPending}
+              className="inline-flex items-center px-8 py-3 text-lg font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg"
+            >
+              {submitOrderMutation.isPending
+                ? (isRTL ? '⏳ שולח...' : '⏳ Submitting...')
+                : (isRTL ? '🚚 שלח למובילים' : '🚚 Send to Movers')}
+            </button>
+          </div>
         </div>
       )}
 
@@ -119,11 +127,17 @@ export default function OrderStatus() {
           <h1 className="text-2xl font-bold text-green-800 mb-2">
             {isRTL ? 'ההזמנה נשלחה בהצלחה!' : 'Order Submitted Successfully!'}
           </h1>
-          <p className="text-green-700">
+          <p className="text-green-700 mb-4">
             {isRTL
               ? 'ההזמנה שלך נשלחה למובילים באזור. תקבל הצעות מחיר בקרוב.'
               : 'Your order has been sent to movers in your area. You will receive quotes soon.'}
           </p>
+          <Link
+            to={`/order/edit/${order.id}`}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
+          >
+            {isRTL ? '✏️ ערוך הזמנה' : '✏️ Edit Order'}
+          </Link>
         </div>
       )}
 

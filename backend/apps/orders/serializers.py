@@ -229,6 +229,68 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
         ]
 
 
+class CustomerOrderUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for customer editing their order (draft/pending only)."""
+
+    class Meta:
+        model = Order
+        fields = [
+            # Origin
+            'origin_address', 'origin_city', 'origin_floor', 'origin_has_elevator',
+            'origin_coordinates',
+            # Destination
+            'destination_address', 'destination_city', 'destination_floor',
+            'destination_has_elevator', 'destination_coordinates',
+            # Scheduling
+            'date_flexibility', 'preferred_date', 'preferred_date_end', 'preferred_time_slot',
+            # Notes
+            'customer_notes',
+        ]
+        extra_kwargs = {
+            'origin_address': {'required': False},
+            'origin_city': {'required': False},
+            'destination_address': {'required': False},
+            'destination_city': {'required': False},
+            'preferred_date': {'required': False, 'allow_null': True},
+            'preferred_date_end': {'required': False, 'allow_null': True},
+        }
+
+    def validate(self, data):
+        order = self.instance
+        if order and order.status not in ['draft', 'pending']:
+            raise serializers.ValidationError(
+                'Order can only be edited in draft or pending status.'
+            )
+        flexibility = data.get(
+            'date_flexibility',
+            getattr(self.instance, 'date_flexibility', 'specific')
+        )
+        if flexibility == 'range':
+            start = data.get('preferred_date', getattr(self.instance, 'preferred_date', None))
+            end = data.get('preferred_date_end', getattr(self.instance, 'preferred_date_end', None))
+            if start and end and end < start:
+                raise serializers.ValidationError(
+                    {'preferred_date_end': 'End date must be after start date.'}
+                )
+        elif flexibility == 'specific':
+            data['preferred_date_end'] = None
+        return data
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        # Recalculate distance if coordinates changed
+        origin_coords = extract_coordinates(instance.origin_coordinates)
+        dest_coords = extract_coordinates(instance.destination_coordinates)
+        if origin_coords and dest_coords:
+            distance = haversine_distance(
+                origin_coords[0], origin_coords[1],
+                dest_coords[0], dest_coords[1],
+            )
+            instance.distance_km = Decimal(str(round(distance, 2)))
+            instance.save(update_fields=['distance_km'])
+        return instance
+
+
 class OrderStatusUpdateSerializer(serializers.Serializer):
     """Serializer for updating order status."""
     status = serializers.ChoiceField(choices=Order.Status.choices)

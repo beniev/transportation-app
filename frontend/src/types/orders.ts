@@ -133,11 +133,13 @@ export interface Order {
   origin_floor: number
   origin_has_elevator: boolean
   origin_distance_to_truck: number
+  origin_coordinates?: { lat: number; lng: number } | Record<string, number>
   destination_address: string
   destination_city: string
   destination_floor: number
   destination_has_elevator: boolean
   destination_distance_to_truck: number
+  destination_coordinates?: { lat: number; lng: number } | Record<string, number>
   distance_km: number
   moving_date: string | null
   date_flexibility: DateFlexibility
@@ -185,10 +187,19 @@ export interface OrderItem {
   item_type: string
   item_type_name?: string
   item_type_name_he?: string
+  name?: string
+  name_he?: string
+  description?: string
   quantity: number
   base_price: number
+  unit_price?: number
   requires_assembly: boolean
+  requires_disassembly?: boolean
+  requires_special_handling?: boolean
   assembly_price: number
+  assembly_cost?: number
+  disassembly_cost?: number
+  special_handling_cost?: number
   is_fragile: boolean
   special_handling_price: number
   total_price: number
@@ -197,6 +208,10 @@ export interface OrderItem {
   notes: string
   ai_identified: boolean
   ai_confidence: number
+  ai_needs_clarification?: boolean
+  ai_clarification_question?: string
+  created_at?: string
+  updated_at?: string
 }
 
 export interface OrderImage {
@@ -233,6 +248,7 @@ export interface CreateOrderData {
 
 export interface UpdateOrderData extends Partial<CreateOrderData> {
   status?: OrderStatus
+  customer_notes?: string
 }
 
 export interface AddOrderItemData {

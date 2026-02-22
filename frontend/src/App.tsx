@@ -27,6 +27,7 @@ import MoverOrderDetail from './pages/mover/OrderDetail'
 // Customer Pages
 import CreateOrder from './pages/customer/CreateOrder'
 import OrderStatus from './pages/customer/OrderStatus'
+import EditOrder from './pages/customer/EditOrder'
 import CompareMovers from './pages/customer/CompareMovers'
 
 // Admin Pages
@@ -95,6 +96,7 @@ function App() {
         <Route path="/order" element={<CustomerLayout />}>
           <Route index element={<CreateOrder />} />
           <Route path="status/:orderId" element={<OrderStatus />} />
+          <Route path="edit/:orderId" element={<EditOrder />} />
           <Route path="compare/:orderId" element={<CompareMovers />} />
         </Route>
 
