@@ -40,7 +40,7 @@ export const adminMoversAPI = {
   list: async (statusFilter?: string): Promise<AdminMoverProfile[]> => {
     const params = statusFilter ? { status: statusFilter } : {}
     const response = await apiClient.get('/auth/admin/movers/', { params })
-    return response.data
+    return response.data.results ?? response.data
   },
 
   detail: async (id: string): Promise<AdminMoverProfile> => {
