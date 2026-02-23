@@ -25,6 +25,9 @@ from .views import (
     RequestManualQuoteView,
     CreateReviewView,
     MoverReviewsView,
+    # Admin views
+    AdminOrderListView,
+    AdminOrderDetailView,
 )
 
 app_name = 'orders'
@@ -65,4 +68,8 @@ urlpatterns = [
     # Reviews
     path('<uuid:pk>/review/', CreateReviewView.as_view(), name='order_review'),
     path('mover/<uuid:mover_id>/reviews/', MoverReviewsView.as_view(), name='mover_reviews'),
+
+    # Admin
+    path('admin/', AdminOrderListView.as_view(), name='admin_order_list'),
+    path('admin/<uuid:pk>/', AdminOrderDetailView.as_view(), name='admin_order_detail'),
 ]

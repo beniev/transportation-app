@@ -33,6 +33,7 @@ import CompareMovers from './pages/customer/CompareMovers'
 // Admin Pages
 import AdminCatalog from './pages/admin/Catalog'
 import MoverApprovals from './pages/admin/MoverApprovals'
+import AdminOrders from './pages/admin/AdminOrders'
 
 // Mover Onboarding
 import MoverOnboarding from './pages/mover/Onboarding'
@@ -108,6 +109,7 @@ function App() {
         }>
           <Route index element={<AdminCatalog />} />
           <Route path="movers" element={<MoverApprovals />} />
+          <Route path="orders" element={<AdminOrders />} />
         </Route>
 
         {/* 404 */}

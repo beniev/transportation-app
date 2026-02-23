@@ -533,3 +533,51 @@ class MoverReviewsView(generics.ListAPIView):
     def get_queryset(self):
         mover_id = self.kwargs['mover_id']
         return Review.objects.filter(mover_id=mover_id).select_related('customer')
+
+
+# ──────────────────────────────────────────────
+# Admin Order Views
+# ──────────────────────────────────────────────
+
+class IsAdmin(permissions.BasePermission):
+    """Permission for admin-only access."""
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated
+            and request.user.user_type == 'admin'
+        )
+
+
+class AdminOrderListView(generics.ListAPIView):
+    """List ALL orders for admin with filtering. Supports pagination."""
+    serializer_class = OrderListSerializer
+    permission_classes = [IsAdmin]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['status', 'origin_city', 'destination_city']
+
+    def get_queryset(self):
+        qs = Order.objects.select_related('customer', 'mover').order_by('-created_at')
+        # Search by customer name or email
+        search = self.request.query_params.get('search')
+        if search:
+            from django.db.models import Q
+            qs = qs.filter(
+                Q(customer__email__icontains=search) |
+                Q(customer__first_name__icontains=search) |
+                Q(customer__last_name__icontains=search) |
+                Q(origin_city__icontains=search) |
+                Q(destination_city__icontains=search)
+            )
+        return qs
+
+
+class AdminOrderDetailView(generics.RetrieveAPIView):
+    """Get full order details for admin."""
+    serializer_class = OrderDetailSerializer
+    permission_classes = [IsAdmin]
+    lookup_field = 'pk'
+
+    def get_queryset(self):
+        return Order.objects.select_related('customer', 'mover').prefetch_related(
+            'items', 'order_images', 'ai_conversations'
+        )
