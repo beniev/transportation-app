@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { adminOrdersAPI, type AdminOrderListItem } from '../../api/endpoints/adminOrders'
+import type { Order, OrderItem, OrderImage } from '../../types/orders'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 
 const statusColors: Record<string, string> = {
@@ -57,7 +58,7 @@ export default function AdminOrders() {
   const [hasNext, setHasNext] = useState(false)
   const [hasPrev, setHasPrev] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [expandedOrder, setExpandedOrder] = useState<Record<string, unknown> | null>(null)
+  const [expandedOrder, setExpandedOrder] = useState<Order | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
 
   const PAGE_SIZE = 20
@@ -99,7 +100,7 @@ export default function AdminOrders() {
     setLoadingDetail(true)
     try {
       const detail = await adminOrdersAPI.detail(id)
-      setExpandedOrder(detail as unknown as Record<string, unknown>)
+      setExpandedOrder(detail)
     } catch {
       toast.error(isRTL ? 'שגיאה בטעינת פרטים' : 'Error loading details')
     } finally {
@@ -322,9 +323,9 @@ export default function AdminOrders() {
 
 // ===== Order Detail Panel (expanded row) =====
 
-function OrderDetailPanel({ order, isRTL }: { order: Record<string, unknown>; isRTL: boolean }) {
-  const items = (order.items as Array<Record<string, unknown>>) || []
-  const images = (order.order_images as Array<Record<string, unknown>>) || []
+function OrderDetailPanel({ order, isRTL }: { order: Order; isRTL: boolean }) {
+  const items: OrderItem[] = order.items || []
+  const images: OrderImage[] = order.order_images || order.images || []
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -341,7 +342,7 @@ function OrderDetailPanel({ order, isRTL }: { order: Record<string, unknown>; is
               {isRTL ? 'תיאור מקורי' : 'Original Description'}
             </span>
             <p className="text-sm text-gray-700 bg-white p-2 rounded border whitespace-pre-wrap">
-              {order.original_description as string}
+              {order.original_description}
             </p>
           </div>
         )}
@@ -351,10 +352,10 @@ function OrderDetailPanel({ order, isRTL }: { order: Record<string, unknown>; is
           <span className="text-xs font-medium text-green-600 block mb-1">
             {isRTL ? '📍 מוצא' : '📍 Origin'}
           </span>
-          <p className="text-sm">{(order.origin_address as string) || '—'}</p>
+          <p className="text-sm">{order.origin_address || '—'}</p>
           <p className="text-xs text-gray-500">
-            {isRTL ? 'קומה' : 'Floor'}: {order.origin_floor as number} |{' '}
-            {isRTL ? 'מעלית' : 'Elevator'}: {(order.origin_has_elevator as boolean) ? '✓' : '✗'}
+            {isRTL ? 'קומה' : 'Floor'}: {order.origin_floor} |{' '}
+            {isRTL ? 'מעלית' : 'Elevator'}: {order.origin_has_elevator ? '✓' : '✗'}
           </p>
         </div>
 
@@ -363,15 +364,15 @@ function OrderDetailPanel({ order, isRTL }: { order: Record<string, unknown>; is
           <span className="text-xs font-medium text-blue-600 block mb-1">
             {isRTL ? '📍 יעד' : '📍 Destination'}
           </span>
-          <p className="text-sm">{(order.destination_address as string) || '—'}</p>
+          <p className="text-sm">{order.destination_address || '—'}</p>
           <p className="text-xs text-gray-500">
-            {isRTL ? 'קומה' : 'Floor'}: {order.destination_floor as number} |{' '}
-            {isRTL ? 'מעלית' : 'Elevator'}: {(order.destination_has_elevator as boolean) ? '✓' : '✗'}
+            {isRTL ? 'קומה' : 'Floor'}: {order.destination_floor} |{' '}
+            {isRTL ? 'מעלית' : 'Elevator'}: {order.destination_has_elevator ? '✓' : '✗'}
           </p>
         </div>
 
         {/* Distance */}
-        {order.distance_km && (
+        {order.distance_km > 0 && (
           <p className="text-sm text-gray-600">
             {isRTL ? 'מרחק' : 'Distance'}: {Number(order.distance_km).toFixed(1)} km
           </p>
@@ -381,7 +382,7 @@ function OrderDetailPanel({ order, isRTL }: { order: Record<string, unknown>; is
         {order.customer_notes && (
           <div>
             <span className="text-xs text-gray-500">{isRTL ? 'הערות לקוח' : 'Customer Notes'}</span>
-            <p className="text-sm text-gray-700">{order.customer_notes as string}</p>
+            <p className="text-sm text-gray-700">{order.customer_notes}</p>
           </div>
         )}
       </div>
@@ -395,12 +396,12 @@ function OrderDetailPanel({ order, isRTL }: { order: Record<string, unknown>; is
         {items.length > 0 ? (
           <div className="space-y-1 max-h-60 overflow-y-auto">
             {items.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center bg-white p-2 rounded border text-sm">
+              <div key={item.id || idx} className="flex justify-between items-center bg-white p-2 rounded border text-sm">
                 <div className="flex-1">
                   <span className="font-medium">
-                    {(item.name as string) || (item.name_he as string) || 'Unknown'}
+                    {item.name || 'Unknown'}
                   </span>
-                  <span className="text-gray-500 ms-2">×{item.quantity as number}</span>
+                  <span className="text-gray-500 ms-2">×{item.quantity}</span>
                   {/* Tags */}
                   <div className="flex gap-1 mt-0.5">
                     {item.is_fragile && <span className="text-[10px] bg-amber-100 text-amber-700 px-1 rounded">{isRTL ? 'שביר' : 'Fragile'}</span>}
@@ -424,15 +425,15 @@ function OrderDetailPanel({ order, isRTL }: { order: Record<string, unknown>; is
           <h5 className="text-xs font-medium text-gray-500 mb-2">
             {isRTL ? 'פירוט מחיר' : 'Price Breakdown'}
           </h5>
-          <PriceLine label={isRTL ? 'פריטים' : 'Items'} value={order.items_subtotal as number} />
-          <PriceLine label={isRTL ? 'תוספת קומות מוצא' : 'Origin floor'} value={order.origin_floor_surcharge as number} />
-          <PriceLine label={isRTL ? 'תוספת קומות יעד' : 'Dest floor'} value={order.destination_floor_surcharge as number} />
-          <PriceLine label={isRTL ? 'תוספת מרחק' : 'Distance'} value={order.distance_surcharge as number} />
-          <PriceLine label={isRTL ? 'נסיעה' : 'Travel'} value={order.travel_cost as number} />
-          <PriceLine label={isRTL ? 'עונתי' : 'Seasonal'} value={order.seasonal_adjustment as number} />
-          <PriceLine label={isRTL ? 'יום בשבוע' : 'Day adj.'} value={order.day_of_week_adjustment as number} />
-          {(order.discount as number) > 0 && (
-            <PriceLine label={isRTL ? 'הנחה' : 'Discount'} value={-(order.discount as number)} />
+          <PriceLine label={isRTL ? 'פריטים' : 'Items'} value={order.items_subtotal} />
+          <PriceLine label={isRTL ? 'תוספת קומות מוצא' : 'Origin floor'} value={order.origin_floor_surcharge} />
+          <PriceLine label={isRTL ? 'תוספת קומות יעד' : 'Dest floor'} value={order.destination_floor_surcharge} />
+          <PriceLine label={isRTL ? 'תוספת מרחק' : 'Distance'} value={order.distance_surcharge} />
+          <PriceLine label={isRTL ? 'נסיעה' : 'Travel'} value={order.travel_cost} />
+          <PriceLine label={isRTL ? 'עונתי' : 'Seasonal'} value={order.seasonal_adjustment} />
+          <PriceLine label={isRTL ? 'יום בשבוע' : 'Day adj.'} value={order.day_of_week_adjustment} />
+          {order.discount > 0 && (
+            <PriceLine label={isRTL ? 'הנחה' : 'Discount'} value={-order.discount} />
           )}
           <div className="border-t pt-1 mt-1 flex justify-between font-bold text-sm">
             <span>{isRTL ? 'סה"כ' : 'Total'}</span>
@@ -447,21 +448,24 @@ function OrderDetailPanel({ order, isRTL }: { order: Record<string, unknown>; is
               {isRTL ? `תמונות (${images.length})` : `Images (${images.length})`}
             </h5>
             <div className="flex gap-2 flex-wrap">
-              {images.map((img, idx) => (
-                <a
-                  key={idx}
-                  href={img.image_url as string}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-16 h-16 bg-gray-200 rounded overflow-hidden hover:opacity-80 transition-opacity"
-                >
-                  <img
-                    src={img.image_url as string}
-                    alt={`Image ${idx + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </a>
-              ))}
+              {images.map((img, idx) => {
+                const imgUrl = img.image_url || img.image
+                return (
+                  <a
+                    key={img.id || idx}
+                    href={imgUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-16 h-16 bg-gray-200 rounded overflow-hidden hover:opacity-80 transition-opacity"
+                  >
+                    <img
+                      src={imgUrl}
+                      alt={`Image ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </a>
+                )
+              })}
             </div>
           </div>
         )}

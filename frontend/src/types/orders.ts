@@ -217,7 +217,11 @@ export interface OrderItem {
 export interface OrderImage {
   id: string
   image: string
+  image_url?: string
+  filename?: string
+  room_name?: string
   description: string
+  ai_analyzed?: boolean
   ai_analysis: Record<string, unknown>
   analyzed_at: string | null
   created_at: string
