@@ -378,6 +378,34 @@ class OrderItem(TimeStampedModel):
         default=False
     )
 
+    # AI-estimated characteristics (for unmatched items pricing)
+    estimated_weight_class = models.CharField(
+        _('estimated weight class'),
+        max_length=20,
+        choices=[
+            ('light', _('Light')),
+            ('medium', _('Medium')),
+            ('heavy', _('Heavy')),
+            ('extra_heavy', _('Extra Heavy')),
+        ],
+        default='medium',
+        blank=True,
+        help_text=_('AI-estimated weight class for pricing unmatched items')
+    )
+    estimated_size = models.CharField(
+        _('estimated size'),
+        max_length=20,
+        choices=[
+            ('small', _('Small')),
+            ('medium', _('Medium')),
+            ('large', _('Large')),
+            ('extra_large', _('Extra Large')),
+        ],
+        default='medium',
+        blank=True,
+        help_text=_('AI-estimated size for pricing unmatched items')
+    )
+
     # Room location
     room_name = models.CharField(
         _('room name'),

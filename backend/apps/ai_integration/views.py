@@ -58,21 +58,22 @@ class ParseDescriptionView(APIView):
         parser = ItemParserService()
         result = parser.parse_description(description, language)
 
-        # If mover_id provided, calculate prices
+        # If mover_id provided, calculate prices for ALL items (matched and unmatched)
         if mover_id and 'items' in result:
             try:
                 price_analyzer = PriceAnalyzerService(mover_id)
                 for item in result['items']:
-                    item_type_id = item.get('matched_item_type_id')
-                    if item_type_id:
-                        prices = price_analyzer.calculate_item_price(
-                            item_type_id=item_type_id,
-                            quantity=item.get('quantity', 1),
-                            requires_assembly=item.get('requires_assembly', False),
-                            requires_disassembly=item.get('requires_disassembly', False),
-                            requires_special_handling=item.get('requires_special_handling', False),
-                        )
-                        item['estimated_price'] = str(prices['total'])
+                    prices = price_analyzer.calculate_item_price(
+                        item_type_id=item.get('matched_item_type_id'),
+                        quantity=item.get('quantity', 1),
+                        requires_assembly=item.get('requires_assembly', False),
+                        requires_disassembly=item.get('requires_disassembly', False),
+                        requires_special_handling=item.get('requires_special_handling', False),
+                        is_fragile=item.get('is_fragile', False),
+                        estimated_weight_class=item.get('estimated_weight_class', 'medium'),
+                        estimated_size=item.get('estimated_size', 'medium'),
+                    )
+                    item['estimated_price'] = str(prices['total'])
             except Exception as e:
                 logger.error(f"Error calculating prices: {e}")
 
@@ -296,6 +297,8 @@ class ProcessOrderAIView(APIView):
                 requires_disassembly=item_data.get('requires_disassembly', False),
                 is_fragile=item_data.get('is_fragile', False),
                 requires_special_handling=item_data.get('requires_special_handling', False),
+                estimated_weight_class=item_data.get('estimated_weight_class', 'medium'),
+                estimated_size=item_data.get('estimated_size', 'medium'),
                 room_name=item_data.get('room', ''),
                 ai_confidence=item_data.get('confidence', 0.5),
                 ai_needs_clarification=bool(item_data.get('needs_clarification')),

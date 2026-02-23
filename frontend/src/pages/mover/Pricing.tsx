@@ -240,7 +240,7 @@ function PricingFactorsTab() {
       {/* Save Button */}
       <button
         onClick={handleSave}
-        disabled={!hasChanges || updateMutation.isPending}
+        disabled={updateMutation.isPending}
         className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {updateMutation.isPending

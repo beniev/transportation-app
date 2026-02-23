@@ -119,8 +119,8 @@ export default function ServiceArea() {
       {/* Service Radius */}
       <div className="bg-white rounded-xl shadow p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">{t('mover.serviceRadius')}</h2>
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
+        <div className="flex items-start gap-4">
+          <div className="flex-1 space-y-2" dir="ltr">
             <input
               type="range"
               min={10}
@@ -128,19 +128,22 @@ export default function ServiceArea() {
               step={5}
               value={radius}
               onChange={(e) => setRadius(Number(e.target.value))}
-              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              className="slider-blue w-full"
+              style={{
+                background: `linear-gradient(to right, #2563eb 0%, #2563eb ${((radius - 10) / (200 - 10)) * 100}%, #e5e7eb ${((radius - 10) / (200 - 10)) * 100}%, #e5e7eb 100%)`,
+              }}
             />
-            <div className="w-24 text-center">
-              <span className="text-2xl font-bold text-blue-600">{radius}</span>
-              <span className="text-sm text-gray-500 ms-1">{t('mover.km')}</span>
+            <div className="flex justify-between text-xs text-gray-400">
+              <span>10 km</span>
+              <span>50 km</span>
+              <span>100 km</span>
+              <span>150 km</span>
+              <span>200 km</span>
             </div>
           </div>
-          <div className="flex justify-between text-xs text-gray-400" dir="ltr">
-            <span>10 km</span>
-            <span>50 km</span>
-            <span>100 km</span>
-            <span>150 km</span>
-            <span>200 km</span>
+          <div className="w-24 text-center pt-0">
+            <span className="text-2xl font-bold text-blue-600">{radius}</span>
+            <span className="text-sm text-gray-500 ms-1">{t('mover.km')}</span>
           </div>
         </div>
       </div>

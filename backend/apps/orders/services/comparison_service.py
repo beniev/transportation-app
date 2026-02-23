@@ -240,6 +240,9 @@ class ComparisonService:
                 'requires_assembly': item.requires_assembly,
                 'requires_disassembly': item.requires_disassembly,
                 'requires_special_handling': item.requires_special_handling,
+                'is_fragile': item.is_fragile,
+                'estimated_weight_class': item.estimated_weight_class,
+                'estimated_size': item.estimated_size,
             })
 
         result = analyzer.calculate_order_total(

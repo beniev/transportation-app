@@ -26,6 +26,21 @@ class PriceAnalyzerService:
 
     PEAK_MONTHS = [7, 8]  # July, August
 
+    # Smart pricing tables for unmatched items (items not in catalog)
+    SIZE_BASE_PRICES = {
+        'small': Decimal('50.00'),       # Fits in a box (lamp, microwave)
+        'medium': Decimal('100.00'),     # Chair-sized (office chair, nightstand)
+        'large': Decimal('200.00'),      # Sofa-sized (3-seater sofa, large wardrobe)
+        'extra_large': Decimal('350.00'),  # Piano/pool-table sized
+    }
+    WEIGHT_MULTIPLIERS = {
+        'light': Decimal('0.8'),        # < 15kg
+        'medium': Decimal('1.0'),       # 15-40kg
+        'heavy': Decimal('1.3'),        # 40-100kg
+        'extra_heavy': Decimal('1.6'),  # > 100kg
+    }
+    FRAGILE_MULTIPLIER = Decimal('1.25')  # +25% for fragile items
+
     def __init__(self, mover_id: str):
         """
         Initialize with a mover's ID.
@@ -65,13 +80,33 @@ class PriceAnalyzerService:
         requires_assembly: bool = False,
         requires_disassembly: bool = False,
         requires_special_handling: bool = False,
+        is_fragile: bool = False,
+        estimated_weight_class: str = 'medium',
+        estimated_size: str = 'medium',
     ) -> Dict[str, Decimal]:
         """
         Calculate price for a single item.
 
+        For unmatched items (no item_type_id), uses AI-estimated weight class
+        and size to calculate a smart price instead of a flat default.
+
+        Args:
+            item_type_id: UUID of matched ItemType (None for unmatched)
+            quantity: Number of items
+            requires_assembly: Whether assembly is needed
+            requires_disassembly: Whether disassembly is needed
+            requires_special_handling: Whether special handling is needed
+            is_fragile: Whether item is fragile (applies 25% surcharge)
+            estimated_weight_class: AI-estimated weight (light/medium/heavy/extra_heavy)
+            estimated_size: AI-estimated size (small/medium/large/extra_large)
+
         Returns:
             Dict with unit_price, assembly_cost, etc.
         """
+        DEFAULT_ASSEMBLY_PRICE = Decimal('30.00')
+        DEFAULT_DISASSEMBLY_PRICE = Decimal('30.00')
+        DEFAULT_SPECIAL_HANDLING_PRICE = Decimal('40.00')
+
         result = {
             'unit_price': Decimal('0.00'),
             'assembly_cost': Decimal('0.00'),
@@ -81,14 +116,17 @@ class PriceAnalyzerService:
         }
 
         if not item_type_id:
-            # Apply default pricing for uncataloged/unknown items
-            # so they contribute to the order total instead of being free
-            DEFAULT_UNKNOWN_ITEM_PRICE = Decimal('50.00')
-            DEFAULT_ASSEMBLY_PRICE = Decimal('30.00')
-            DEFAULT_DISASSEMBLY_PRICE = Decimal('30.00')
-            DEFAULT_SPECIAL_HANDLING_PRICE = Decimal('40.00')
+            # Smart pricing based on AI-estimated characteristics
+            base = self.SIZE_BASE_PRICES.get(estimated_size, Decimal('100.00'))
+            weight_mult = self.WEIGHT_MULTIPLIERS.get(estimated_weight_class, Decimal('1.0'))
+            result['unit_price'] = (base * weight_mult).quantize(Decimal('0.01'))
 
-            result['unit_price'] = DEFAULT_UNKNOWN_ITEM_PRICE
+            # Apply fragile multiplier
+            if is_fragile:
+                result['unit_price'] = (
+                    result['unit_price'] * self.FRAGILE_MULTIPLIER
+                ).quantize(Decimal('0.01'))
+
             if requires_assembly:
                 result['assembly_cost'] = DEFAULT_ASSEMBLY_PRICE
             if requires_disassembly:
@@ -133,6 +171,12 @@ class PriceAnalyzerService:
                     result['special_handling_cost'] = item_type.default_special_handling_price
             except ItemType.DoesNotExist:
                 logger.warning(f"Item type {item_type_id} not found")
+
+        # Apply fragile multiplier for matched items too
+        if is_fragile:
+            result['unit_price'] = (
+                result['unit_price'] * self.FRAGILE_MULTIPLIER
+            ).quantize(Decimal('0.01'))
 
         # Calculate total
         result['total'] = (
@@ -326,6 +370,9 @@ class PriceAnalyzerService:
                 requires_assembly=item.get('requires_assembly', False),
                 requires_disassembly=item.get('requires_disassembly', False),
                 requires_special_handling=item.get('requires_special_handling', False),
+                is_fragile=item.get('is_fragile', False),
+                estimated_weight_class=item.get('estimated_weight_class', 'medium'),
+                estimated_size=item.get('estimated_size', 'medium'),
             )
             items_breakdown.append({
                 'name': item.get('name', item.get('name_en', 'Unknown')),

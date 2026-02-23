@@ -43,6 +43,9 @@ For each item mentioned, identify:
    - Specific concerns ("doesn't fit in elevator", "might need crane")
    - Conditions ("narrow staircase", "no elevator, 5th floor")
    - Questions the customer asks ("do you disassemble?", "is this realistic?")
+8. Weight and size estimation — For EVERY item (matched or not), estimate:
+   - estimated_weight_class: "light" (<15kg, e.g. lamp, box of books), "medium" (15-40kg, e.g. chair, small table), "heavy" (40-100kg, e.g. sofa, large wardrobe), "extra_heavy" (>100kg, e.g. piano, safe, marble table)
+   - estimated_size: "small" (fits in a box, e.g. microwave, lamp), "medium" (chair-sized, e.g. office chair, nightstand), "large" (sofa-sized, e.g. 3-seater sofa, large wardrobe), "extra_large" (piano/pool table sized, e.g. grand piano, L-shape sofa)
 
 QUANTITY RULES:
 - "50+" or "יותר מ-50" → quantity=50, add note "50+"
@@ -132,6 +135,8 @@ Extract items and return JSON in this exact format:
             "is_fragile": false,
             "requires_special_handling": false,
             "special_notes": "weight, dimensions, brand, model, customer concerns — capture EVERYTHING",
+            "estimated_weight_class": "light|medium|heavy|extra_heavy",
+            "estimated_size": "small|medium|large|extra_large",
             "confidence": 0.95
         }}
     ],
@@ -234,6 +239,8 @@ CRITICAL RULES:
             item.setdefault('requires_assembly', False)
             item.setdefault('is_fragile', False)
             item.setdefault('requires_special_handling', False)
+            item.setdefault('estimated_weight_class', 'medium')
+            item.setdefault('estimated_size', 'medium')
             item.setdefault('confidence', 0.5)
 
             validated_items.append(item)
