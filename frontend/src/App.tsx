@@ -29,6 +29,7 @@ import CreateOrder from './pages/customer/CreateOrder'
 import OrderStatus from './pages/customer/OrderStatus'
 import EditOrder from './pages/customer/EditOrder'
 import CompareMovers from './pages/customer/CompareMovers'
+import DirectMoverOrder from './pages/customer/DirectMoverOrder'
 
 // Admin Pages
 import AdminCatalog from './pages/admin/Catalog'
@@ -37,6 +38,9 @@ import AdminOrders from './pages/admin/AdminOrders'
 
 // Mover Onboarding
 import MoverOnboarding from './pages/mover/Onboarding'
+
+// Mover Registration Completion
+import MoverRegistrationComplete from './pages/auth/MoverRegistrationComplete'
 
 // Components
 import LoadingSpinner from './components/common/LoadingSpinner'
@@ -59,12 +63,20 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Navigate to={user ? (user.user_type === 'admin' ? '/admin' : user.user_type === 'mover' ? '/mover' : '/order') : '/login'} />} />
+        <Route path="/m/:code" element={<DirectMoverOrder />} />
 
         {/* Auth Routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
         </Route>
+
+        {/* Mover Registration Completion (phone verification + company name) */}
+        <Route path="/register/mover-complete" element={
+          <ProtectedRoute allowedTypes={['mover']}>
+            <MoverRegistrationComplete />
+          </ProtectedRoute>
+        } />
 
         {/* Mover Onboarding (outside MoverLayout so it has its own page) */}
         <Route path="/mover/onboarding" element={

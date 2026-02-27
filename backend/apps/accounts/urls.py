@@ -22,6 +22,9 @@ from .views import (
     PublicMoverProfileView,
     MoverListView,
     GoogleAuthView,
+    MoverRegistrationCompleteView,
+    MoverDirectLinkSettingsView,
+    PublicMoverByCodeView,
     # Admin views
     AdminMoverListView,
     AdminMoverDetailView,
@@ -59,6 +62,13 @@ urlpatterns = [
     path('profile/', UserProfileView.as_view(), name='user_profile'),
     path('profile/mover/', MoverProfileView.as_view(), name='mover_profile'),
     path('profile/customer/', CustomerProfileView.as_view(), name='customer_profile'),
+
+    # Mover Registration Completion
+    path('mover/complete-registration/', MoverRegistrationCompleteView.as_view(), name='mover_complete_registration'),
+
+    # Direct Link
+    path('direct-link/settings/', MoverDirectLinkSettingsView.as_view(), name='direct_link_settings'),
+    path('direct-link/<str:code>/', PublicMoverByCodeView.as_view(), name='direct_link_public'),
 
     # Public Mover Profiles
     path('movers/', MoverListView.as_view(), name='mover_list'),

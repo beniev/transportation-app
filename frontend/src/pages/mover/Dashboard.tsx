@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { useMoverOrders, useAvailableOrders } from '../../api/hooks'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import { onboardingAPI, type OnboardingStatus } from '../../api/endpoints/onboarding'
+import { authAPI } from '../../api/endpoints/auth'
 import type { OrderStatus } from '../../types'
 
 const statusColors: Record<OrderStatus, string> = {
@@ -24,6 +26,8 @@ export default function MoverDashboard() {
   const isRTL = i18n.language === 'he'
   const navigate = useNavigate()
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null)
+  const [directLink, setDirectLink] = useState<{ enabled: boolean; code: string | null; url: string | null } | null>(null)
+  const [directLinkLoading, setDirectLinkLoading] = useState(false)
 
   useEffect(() => {
     onboardingAPI.getStatus().then((status) => {
@@ -32,6 +36,11 @@ export default function MoverDashboard() {
         navigate('/mover/onboarding')
       }
     }).catch(() => { /* ignore */ })
+
+    // Fetch direct link settings
+    authAPI.getDirectLinkSettings()
+      .then(setDirectLink)
+      .catch(() => { /* ignore */ })
   }, [])
 
   const { data: allOrders, isLoading: loadingAll } = useMoverOrders()
@@ -133,6 +142,62 @@ export default function MoverDashboard() {
           </span>
         </div>
       </div>
+
+      {/* Direct Order Link */}
+      {directLink && (
+        <div className="card mb-8 border border-teal-200 bg-teal-50/50">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-bold text-gray-800">
+                {isRTL ? '🔗 לינק הזמנה ישיר' : '🔗 Direct Order Link'}
+              </h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {isRTL ? 'שתף את הלינק עם לקוחות לקבלת הזמנות ישירות' : 'Share this link with customers for direct orders'}
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                setDirectLinkLoading(true)
+                try {
+                  const updated = await authAPI.updateDirectLinkSettings({ enabled: !directLink.enabled })
+                  setDirectLink(updated)
+                  toast.success(isRTL
+                    ? (updated.enabled ? 'הלינק הופעל!' : 'הלינק הושבת')
+                    : (updated.enabled ? 'Link enabled!' : 'Link disabled'))
+                } catch {
+                  toast.error(isRTL ? 'שגיאה' : 'Error')
+                } finally {
+                  setDirectLinkLoading(false)
+                }
+              }}
+              disabled={directLinkLoading}
+              className={`relative w-12 h-6 rounded-full transition-colors ${directLink.enabled ? 'bg-teal-600' : 'bg-gray-300'}`}
+            >
+              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${directLink.enabled ? (isRTL ? 'start-0.5' : 'start-[26px]') : (isRTL ? 'start-[26px]' : 'start-0.5')}`} />
+            </button>
+          </div>
+          {directLink.enabled && directLink.url && (
+            <div className="flex items-center gap-2 bg-white rounded-lg p-3 border">
+              <input
+                type="text"
+                readOnly
+                value={directLink.url}
+                className="flex-1 bg-transparent text-sm text-gray-700 outline-none"
+                dir="ltr"
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(directLink.url!)
+                  toast.success(isRTL ? 'הלינק הועתק!' : 'Link copied!')
+                }}
+                className="px-3 py-1.5 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition-colors shrink-0"
+              >
+                {isRTL ? '📋 העתק' : '📋 Copy'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Two columns: Recent Orders + Available Orders */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

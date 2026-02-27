@@ -546,14 +546,14 @@ export default function CreateOrder() {
           <div key={s} className="flex items-center">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step >= s ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                step >= s ? 'bg-teal-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}
             >
               {s}
             </div>
             {s < 3 && (
               <div
-                className={`w-16 h-1 mx-2 ${step > s ? 'bg-blue-600' : 'bg-gray-200'}`}
+                className={`w-16 h-1 mx-2 ${step > s ? 'bg-teal-600' : 'bg-gray-200'}`}
               />
             )}
           </div>
@@ -676,7 +676,7 @@ export default function CreateOrder() {
                 onClick={() => setOrderData({ ...orderData, date_flexibility: 'specific', moving_date_end: '' })}
                 className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors border ${
                   orderData.date_flexibility !== 'range'
-                    ? 'bg-blue-600 text-white border-blue-600'
+                    ? 'bg-teal-600 text-white border-teal-600'
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                 }`}
               >
@@ -687,7 +687,7 @@ export default function CreateOrder() {
                 onClick={() => setOrderData({ ...orderData, date_flexibility: 'range' })}
                 className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors border ${
                   orderData.date_flexibility === 'range'
-                    ? 'bg-blue-600 text-white border-blue-600'
+                    ? 'bg-teal-600 text-white border-teal-600'
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                 }`}
               >
@@ -859,7 +859,7 @@ export default function CreateOrder() {
                             onClick={() => setEditForm({ ...editForm, [key]: !editForm[key] })}
                             className={`text-xs px-2 py-1 rounded-full border transition-colors ${
                               editForm[key]
-                                ? 'bg-blue-100 border-blue-400 text-blue-800'
+                                ? 'bg-teal-100 border-teal-400 text-teal-800'
                                 : 'bg-gray-50 border-gray-300 text-gray-500'
                             }`}
                           >
@@ -922,7 +922,7 @@ export default function CreateOrder() {
                               <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full">🏗️ {isRTL ? 'טיפול מיוחד' : 'Special handling'}</span>
                             )}
                             {item.room && (
-                              <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">📍 {item.room}</span>
+                              <span className="text-xs px-2 py-0.5 bg-teal-100 text-teal-700 rounded-full">📍 {item.room}</span>
                             )}
                           </div>
                         )}
@@ -961,7 +961,7 @@ export default function CreateOrder() {
                         )}
                         <button
                           onClick={() => handleEditItem(index)}
-                          className="text-blue-600 hover:text-blue-800 p-1"
+                          className="text-teal-600 hover:text-teal-800 p-1"
                           title={isRTL ? 'ערוך' : 'Edit'}
                         >
                           ✏️
@@ -1011,8 +1011,8 @@ export default function CreateOrder() {
 
           {/* AI clarification questions for specific items */}
           {parseResult.clarification_questions && parseResult.clarification_questions.length > 0 && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="font-medium text-blue-800 mb-2">
+            <div className="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+              <h3 className="font-medium text-teal-800 mb-2">
                 {isRTL ? '❓ שאלות להשלמת פרטים' : '❓ Questions for Better Pricing'}
               </h3>
               <div className="space-y-2">
@@ -1020,13 +1020,13 @@ export default function CreateOrder() {
                   const item = parseResult.items[q.item_index]
                   return (
                     <div key={i} className="flex items-start gap-2 text-sm">
-                      <span className="text-blue-600 font-medium shrink-0">
+                      <span className="text-teal-600 font-medium shrink-0">
                         {item ? item.item_name : `#${q.item_index + 1}`}:
                       </span>
-                      <span className="text-blue-700">{isRTL ? q.question_he : q.question_en}</span>
+                      <span className="text-teal-700">{isRTL ? q.question_he : q.question_en}</span>
                       <button
                         onClick={() => handleEditItem(q.item_index)}
-                        className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 shrink-0"
+                        className="text-xs px-2 py-0.5 bg-teal-100 text-teal-700 rounded hover:bg-teal-200 shrink-0"
                       >
                         {isRTL ? 'ערוך' : 'Edit'}
                       </button>
@@ -1151,6 +1151,7 @@ export default function CreateOrder() {
         suggestedAnswers={customItemAnswers}
         onItemCreated={handleCustomItemCreated}
       />
+
     </div>
   )
 }

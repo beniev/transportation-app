@@ -251,7 +251,7 @@ export default function EditOrder() {
     onCancel: () => void,
     saveLabel: string,
   ) => (
-    <div className="space-y-3 p-3 bg-white rounded-lg border border-blue-200">
+    <div className="space-y-3 p-3 bg-white rounded-lg border border-teal-200">
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-500">{t('orders.itemName')}</label>
@@ -311,7 +311,7 @@ export default function EditOrder() {
         <button type="button" onClick={onCancel} className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800">
           {t('common.cancel')}
         </button>
-        <button type="button" onClick={onSave} className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+        <button type="button" onClick={onSave} className="px-3 py-1 text-sm bg-teal-600 text-white rounded hover:bg-teal-700">
           {saveLabel}
         </button>
       </div>
@@ -428,7 +428,7 @@ export default function EditOrder() {
             onClick={() => setFormData({ ...formData, date_flexibility: 'specific' })}
             className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
               formData.date_flexibility === 'specific'
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                ? 'border-teal-500 bg-teal-50 text-teal-700'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
           >
@@ -439,7 +439,7 @@ export default function EditOrder() {
             onClick={() => setFormData({ ...formData, date_flexibility: 'range' })}
             className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
               formData.date_flexibility === 'range'
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                ? 'border-teal-500 bg-teal-50 text-teal-700'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
           >
@@ -560,7 +560,7 @@ export default function EditOrder() {
                           </span>
                         )}
                         {item.room_name && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                          <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded">
                             📍 {item.room_name}
                           </span>
                         )}
@@ -579,7 +579,7 @@ export default function EditOrder() {
                       <button
                         type="button"
                         onClick={() => startEditItem(item)}
-                        className="p-1 text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="p-1 text-gray-400 hover:text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity"
                         title={t('common.edit')}
                       >
                         ✏️

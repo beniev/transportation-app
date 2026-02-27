@@ -53,6 +53,11 @@ export const authAPI = {
     return response.data
   },
 
+  completeMoverRegistration: async (data: { company_name: string; phone: string }): Promise<MoverProfile> => {
+    const response = await apiClient.post('/auth/mover/complete-registration/', data)
+    return response.data
+  },
+
   getMoverProfile: async (): Promise<MoverProfile> => {
     const response = await apiClient.get('/auth/profile/mover/')
     return response.data
@@ -60,6 +65,33 @@ export const authAPI = {
 
   updateMoverProfile: async (data: Partial<MoverProfile>): Promise<MoverProfile> => {
     const response = await apiClient.patch('/auth/profile/mover/', data)
+    return response.data
+  },
+
+  // Direct Link
+  getDirectLinkSettings: async (): Promise<{ enabled: boolean; code: string | null; url: string | null }> => {
+    const response = await apiClient.get('/auth/direct-link/settings/')
+    return response.data
+  },
+
+  updateDirectLinkSettings: async (data: { enabled: boolean }): Promise<{ enabled: boolean; code: string | null; url: string | null }> => {
+    const response = await apiClient.patch('/auth/direct-link/settings/', data)
+    return response.data
+  },
+
+  getMoverByCode: async (code: string): Promise<{
+    id: string
+    company_name: string
+    company_name_he: string
+    description: string
+    description_he: string
+    rating: number
+    total_reviews: number
+    completed_orders: number
+    logo: string | null
+    city: string
+  }> => {
+    const response = await apiClient.get(`/auth/direct-link/${code}/`)
     return response.data
   },
 }

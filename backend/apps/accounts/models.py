@@ -2,9 +2,12 @@
 User and profile models for the transportation app.
 Supports both movers and customers with different profile types.
 """
+from datetime import timedelta
+
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.contrib.auth.base_user import BaseUserManager
 from django.db import models
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from decimal import Decimal
@@ -116,6 +119,13 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
         db_table = 'users'
         verbose_name = _('user')
         verbose_name_plural = _('users')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['phone'],
+                condition=~Q(phone='') & ~Q(phone='0556637120'),
+                name='unique_phone_except_test',
+            ),
+        ]
 
     def __str__(self):
         return self.email
@@ -295,6 +305,21 @@ class MoverProfile(TimeStampedModel):
         default=0,
     )
 
+    # Direct Order Link
+    direct_link_enabled = models.BooleanField(
+        _('direct link enabled'),
+        default=False,
+        help_text=_('Allow customers to create orders directly for this mover'),
+    )
+    direct_link_code = models.CharField(
+        _('direct link code'),
+        max_length=12,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text=_('Unique code for the mover direct order link'),
+    )
+
     # Onboarding
     onboarding_completed = models.BooleanField(
         _('onboarding completed'),
@@ -326,11 +351,21 @@ class MoverProfile(TimeStampedModel):
         return self.company_name
 
     def can_request_verification(self) -> bool:
-        """Check if mover can request new verification code."""
-        if self.verification_attempts >= 5:
+        """Check if mover can request new verification code.
+        Allows resending after 60-second cooldown. Resets attempts when code expires.
+        """
+        now = timezone.now()
+        # Reset attempts counter when last code has expired (10 min after send)
+        if self.verification_code_expires and now > self.verification_code_expires:
+            self.verification_attempts = 0
+            self.save(update_fields=['verification_attempts'])
+        if self.verification_attempts >= 10:
             return False
-        if self.verification_code_expires:
-            return timezone.now() > self.verification_code_expires
+        # 60-second cooldown between sends (code_expires is set to now+10min when sending)
+        if self.verification_code_expires and now < self.verification_code_expires:
+            time_since_sent = now - (self.verification_code_expires - timedelta(minutes=10))
+            if time_since_sent < timedelta(seconds=60):
+                return False
         return True
 
     def update_rating(self):

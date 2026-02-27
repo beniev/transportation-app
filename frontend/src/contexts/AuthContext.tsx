@@ -66,7 +66,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('refreshToken', response.refresh)
     const userData = await authAPI.getProfile()
     setUser(userData)
-    navigate(userData.user_type === 'mover' ? '/mover' : '/order')
+
+    if (userData.user_type === 'mover' && !userData.phone_verified) {
+      // New mover needs to complete registration (company name + phone verification)
+      navigate('/register/mover-complete')
+    } else if (userData.user_type === 'mover') {
+      navigate('/mover')
+    } else {
+      navigate('/order')
+    }
   }
 
   const register = async (data: RegisterData) => {

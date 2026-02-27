@@ -76,6 +76,7 @@ export default function AddressAutocomplete({
   isRTL = true,
 }: AddressAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const houseNumberRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null)
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null)
@@ -88,7 +89,14 @@ export default function AddressAutocomplete({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
-  const [warning, setWarning] = useState('')
+
+  // House number completion state
+  const [showHouseNumberInput, setShowHouseNumberInput] = useState(false)
+  const [houseNumber, setHouseNumber] = useState('')
+  const [selectedStreet, setSelectedStreet] = useState('')
+  const [selectedCity, setSelectedCity] = useState('')
+  const [selectedLat, setSelectedLat] = useState<number | undefined>()
+  const [selectedLng, setSelectedLng] = useState<number | undefined>()
 
   // Load Google Maps script
   useEffect(() => {
@@ -129,6 +137,13 @@ export default function AddressAutocomplete({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Auto-focus house number input when it appears
+  useEffect(() => {
+    if (showHouseNumberInput && houseNumberRef.current) {
+      houseNumberRef.current.focus()
+    }
+  }, [showHouseNumberInput])
 
   // Ensure session token exists
   const getSessionToken = useCallback(() => {
@@ -187,6 +202,32 @@ export default function AddressAutocomplete({
     [isLoaded, getSessionToken]
   )
 
+  // Complete address with house number — uses street-level coordinates from Places API
+  // (No Geocoding API needed — street-level coordinates are accurate enough for moving orders)
+  const completeAddressWithHouseNumber = useCallback(
+    (street: string, num: string, city: string) => {
+      const finalAddress = `${street} ${num}`
+      onChange(finalAddress)
+      setShowHouseNumberInput(false)
+      setHouseNumber('')
+      onPlaceSelect({
+        address: finalAddress,
+        city,
+        lat: selectedLat,
+        lng: selectedLng,
+        isExact: true,
+      })
+    },
+    [onChange, onPlaceSelect, selectedLat, selectedLng]
+  )
+
+  // Handle house number submission
+  const handleHouseNumberSubmit = useCallback(() => {
+    const trimmed = houseNumber.trim()
+    if (!trimmed || !selectedStreet) return
+    completeAddressWithHouseNumber(selectedStreet, trimmed, selectedCity)
+  }, [houseNumber, selectedStreet, selectedCity, completeAddressWithHouseNumber])
+
   // Handle selecting a suggestion
   const handleSelect = useCallback(
     (suggestion: Suggestion) => {
@@ -205,8 +246,8 @@ export default function AddressAutocomplete({
         sessionToken: getSessionToken() ?? undefined,
       }
 
-      placesServiceRef.current.getDetails(request, (place, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+      placesServiceRef.current.getDetails(request, (place, detailStatus) => {
+        if (detailStatus === google.maps.places.PlacesServiceStatus.OK && place) {
           let streetNumber = ''
           let route = ''
           let city = ''
@@ -233,21 +274,27 @@ export default function AddressAutocomplete({
             lng = place.geometry.location.lng()
           }
 
-          const hasExactNumber = !!streetNumber
-          const address = route
-            ? streetNumber
-              ? `${route} ${streetNumber}`
-              : route
-            : place.formatted_address || suggestion.text
-
-          if (!hasExactNumber) {
-            setWarning('יש להזין כתובת מדויקת עם מספר בית')
-          } else {
-            setWarning('')
-          }
-
           resetSessionToken()
-          onPlaceSelect({ address, city, lat, lng, isExact: hasExactNumber })
+
+          if (streetNumber) {
+            // Full address with number — proceed normally
+            const address = route ? `${route} ${streetNumber}` : place.formatted_address || suggestion.text
+            setShowHouseNumberInput(false)
+            setHouseNumber('')
+            onChange(address)
+            onPlaceSelect({ address, city, lat, lng, isExact: true })
+          } else {
+            // Street only — show house number input
+            const streetName = route || suggestion.mainText
+            setSelectedStreet(streetName)
+            setSelectedCity(city)
+            setSelectedLat(lat)
+            setSelectedLng(lng)
+            setShowHouseNumberInput(true)
+            setHouseNumber('')
+            onChange(streetName)
+            onPlaceSelect({ address: streetName, city, lat, lng, isExact: false })
+          }
         } else {
           // Fallback: use the suggestion text
           onChange(suggestion.text)
@@ -263,7 +310,9 @@ export default function AddressAutocomplete({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value
       onChange(val)
-      setWarning('')
+      // If user is typing in the main input, hide house number input
+      setShowHouseNumberInput(false)
+      setHouseNumber('')
 
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
@@ -351,7 +400,7 @@ export default function AddressAutocomplete({
               onMouseEnter={() => setActiveIndex(index)}
               className={`w-full text-start px-4 py-3 text-sm border-b border-gray-100 last:border-b-0 transition-colors ${
                 index === activeIndex
-                  ? 'bg-blue-50 text-blue-900'
+                  ? 'bg-teal-50 text-teal-900'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -367,8 +416,38 @@ export default function AddressAutocomplete({
         </div>
       )}
 
-      {warning && (
-        <p className="text-xs text-red-500 mt-1" dir="rtl">{warning}</p>
+      {showHouseNumberInput && (
+        <div
+          className="mt-2 flex items-center gap-2 animate-fade-in-up"
+          dir={isRTL ? 'rtl' : 'ltr'}
+        >
+          <label className="text-sm text-gray-600 whitespace-nowrap">
+            מספר בית:
+          </label>
+          <input
+            ref={houseNumberRef}
+            type="text"
+            value={houseNumber}
+            onChange={(e) => setHouseNumber(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleHouseNumberSubmit()
+              }
+            }}
+            placeholder="לדוגמה: 12"
+            className="input flex-1 text-sm py-1.5"
+            dir="rtl"
+          />
+          <button
+            type="button"
+            onClick={handleHouseNumberSubmit}
+            disabled={!houseNumber.trim()}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-teal-600 rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            אישור
+          </button>
+        </div>
       )}
     </div>
   )

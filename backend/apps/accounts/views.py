@@ -30,6 +30,9 @@ from .serializers import (
     UpdateUserSerializer,
     AdminMoverProfileSerializer,
     MoverApprovalSerializer,
+    MoverRegistrationCompleteSerializer,
+    DirectLinkSettingsSerializer,
+    PublicMoverByCodeSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -222,9 +225,10 @@ class RequestPhoneVerificationView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_profile(self, user):
-        """Get the appropriate profile for verification."""
-        if user.is_customer and hasattr(user, 'customer_profile'):
-            return user.customer_profile
+        """Get the appropriate profile for verification, creating if needed."""
+        if user.is_customer:
+            profile, _ = CustomerProfile.objects.get_or_create(user=user)
+            return profile
         elif user.is_mover and hasattr(user, 'mover_profile'):
             return user.mover_profile
         return None
@@ -262,7 +266,10 @@ class RequestPhoneVerificationView(APIView):
         # Send SMS via SMS4Free
         from .sms_service import send_verification_code
         sms_sent = send_verification_code(phone, code)
-        logger.info(f"Verification code for {phone}: {'sent' if sms_sent else 'FAILED'}")
+        if sms_sent:
+            logger.info(f"Verification code for {phone}: sent via SMS")
+        else:
+            logger.warning(f"Verification code for {phone}: SMS not sent. Code is: {code}")
 
         return Response({
             'message': 'Verification code sent',
@@ -276,9 +283,10 @@ class VerifyPhoneView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_profile(self, user):
-        """Get the appropriate profile for verification."""
-        if user.is_customer and hasattr(user, 'customer_profile'):
-            return user.customer_profile
+        """Get the appropriate profile for verification, creating if needed."""
+        if user.is_customer:
+            profile, _ = CustomerProfile.objects.get_or_create(user=user)
+            return profile
         elif user.is_mover and hasattr(user, 'mover_profile'):
             return user.mover_profile
         return None
@@ -364,6 +372,128 @@ class MoverListView(generics.ListAPIView):
     filterset_fields = ['city', 'is_verified']
     search_fields = ['company_name', 'company_name_he', 'city']
     ordering_fields = ['rating', 'completed_orders', 'created_at']
+
+
+# ──────────────────────────────────────────────
+# Mover Registration Completion
+# ──────────────────────────────────────────────
+
+class MoverRegistrationCompleteView(APIView):
+    """Complete mover registration with company name and verified phone."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not request.user.is_mover or not hasattr(request.user, 'mover_profile'):
+            return Response(
+                {'error': 'Only movers can complete mover registration'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = MoverRegistrationCompleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        company_name = serializer.validated_data['company_name']
+        phone = serializer.validated_data['phone']
+
+        # Validate phone uniqueness (respect the DB constraint)
+        if phone != '0556637120':
+            clean_phone = phone.replace(' ', '').replace('-', '')
+            if clean_phone.startswith('+972'):
+                clean_phone = '0' + clean_phone[4:]
+            elif clean_phone.startswith('972'):
+                clean_phone = '0' + clean_phone[3:]
+
+            existing = User.objects.filter(phone=clean_phone).exclude(pk=request.user.pk).exists()
+            if existing:
+                return Response(
+                    {'phone': ['מספר טלפון זה כבר רשום במערכת']},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Update user phone
+        user = request.user
+        user.phone = phone
+        user.phone_verified = True
+        user.save(update_fields=['phone', 'phone_verified'])
+
+        # Update mover profile
+        profile = user.mover_profile
+        profile.company_name = company_name
+        profile.company_name_he = company_name
+        profile.save(update_fields=['company_name', 'company_name_he'])
+
+        return Response(MoverProfileSerializer(profile).data)
+
+
+# ──────────────────────────────────────────────
+# Direct Link Views
+# ──────────────────────────────────────────────
+
+class IsMover(permissions.BasePermission):
+    """Permission for mover-only access."""
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.is_mover
+
+
+class MoverDirectLinkSettingsView(APIView):
+    """Get or update mover's direct link settings."""
+    permission_classes = [IsMover]
+
+    def get(self, request):
+        profile = request.user.mover_profile
+        return Response({
+            'enabled': profile.direct_link_enabled,
+            'code': profile.direct_link_code,
+            'url': f'https://www.tovil.app/m/{profile.direct_link_code}' if profile.direct_link_code else None,
+        })
+
+    def patch(self, request):
+        profile = request.user.mover_profile
+        serializer = DirectLinkSettingsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        enabled = serializer.validated_data.get('enabled', profile.direct_link_enabled)
+
+        if enabled and not profile.direct_link_code:
+            # Generate a unique code
+            import string
+            chars = string.ascii_lowercase + string.digits
+            # Exclude confusing characters
+            chars = chars.replace('0', '').replace('o', '').replace('l', '').replace('1', '')
+            for _ in range(10):  # max attempts
+                code = ''.join(random.choices(chars, k=8))
+                if not MoverProfile.objects.filter(direct_link_code=code).exists():
+                    profile.direct_link_code = code
+                    break
+
+        profile.direct_link_enabled = enabled
+        profile.save(update_fields=['direct_link_enabled', 'direct_link_code'])
+
+        return Response({
+            'enabled': profile.direct_link_enabled,
+            'code': profile.direct_link_code,
+            'url': f'https://www.tovil.app/m/{profile.direct_link_code}' if profile.direct_link_code else None,
+        })
+
+
+class PublicMoverByCodeView(APIView):
+    """Public view: get mover info by direct link code."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, code):
+        try:
+            profile = MoverProfile.objects.select_related('user').get(
+                direct_link_code=code,
+                direct_link_enabled=True,
+                is_verified=True,
+            )
+        except MoverProfile.DoesNotExist:
+            return Response(
+                {'error': 'Link not found or not available'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response(PublicMoverByCodeSerializer(profile).data)
 
 
 # ──────────────────────────────────────────────

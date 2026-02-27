@@ -73,7 +73,7 @@ export const ordersAPI = {
     return response.data
   },
 
-  createOrder: async (data: CreateOrderData): Promise<Order> => {
+  createOrder: async (data: CreateOrderData & { direct_mover_code?: string }): Promise<Order> => {
     const response = await apiClient.post('/orders/create/', data)
     return response.data
   },

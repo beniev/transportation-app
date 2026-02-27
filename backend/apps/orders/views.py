@@ -33,9 +33,11 @@ class IsMover(permissions.BasePermission):
 
 
 class IsCustomer(permissions.BasePermission):
-    """Permission for customer-only access."""
+    """Permission for customer-only access. Admins also pass."""
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.is_customer
+        return request.user.is_authenticated and (
+            request.user.is_customer or request.user.user_type == 'admin'
+        )
 
 
 class IsOrderParticipant(permissions.BasePermission):
@@ -128,7 +130,11 @@ class OrderCreateView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(customer=self.request.user, status=Order.Status.DRAFT)
+        # Don't override status if direct_mover_code sets it to PENDING
+        save_kwargs = {'customer': self.request.user}
+        if not serializer.validated_data.get('direct_mover_code'):
+            save_kwargs['status'] = Order.Status.DRAFT
+        serializer.save(**save_kwargs)
 
 
 class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -298,6 +304,19 @@ class SubmitOrderView(APIView):
     permission_classes = [IsCustomer]
 
     def post(self, request, pk):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"SubmitOrderView: user={request.user.email}, user_type={request.user.user_type}, is_customer={request.user.is_customer}, phone_verified={request.user.phone_verified}")
+        # Require phone verification before submitting (skip for admins)
+        if request.user.is_customer and not request.user.phone_verified:
+            return Response(
+                {
+                    'error': 'phone_not_verified',
+                    'detail': 'יש לאמת מספר טלפון לפני שליחת הזמנה',
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         order = get_object_or_404(
             Order,
             pk=pk,

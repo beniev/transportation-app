@@ -130,12 +130,16 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     free_text_description = serializers.CharField(
         write_only=True, required=False, allow_blank=True
     )
+    direct_mover_code = serializers.CharField(
+        write_only=True, required=False, allow_blank=True
+    )
 
     class Meta:
         model = Order
         fields = [
             'id',  # Important: include ID in response
             'mover', 'original_description', 'free_text_description',
+            'direct_mover_code',
             # Origin
             'origin_address', 'origin_city', 'origin_floor', 'origin_has_elevator',
             'origin_building_floors', 'origin_distance_to_truck',
@@ -196,6 +200,21 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         # Map free_text_description to original_description
         if 'free_text_description' in validated_data:
             validated_data['original_description'] = validated_data.pop('free_text_description')
+
+        # Handle direct mover code — assign mover and set status to PENDING
+        direct_mover_code = validated_data.pop('direct_mover_code', None)
+        if direct_mover_code:
+            from apps.accounts.models import MoverProfile
+            try:
+                mover = MoverProfile.objects.get(
+                    direct_link_code=direct_mover_code,
+                    direct_link_enabled=True,
+                    is_verified=True,
+                )
+                validated_data['mover'] = mover
+                validated_data['status'] = Order.Status.PENDING
+            except MoverProfile.DoesNotExist:
+                pass  # Silently ignore invalid code, create as normal draft
 
         # Auto-compute distance_km from coordinates if both are provided
         origin_coords = extract_coordinates(validated_data.get('origin_coordinates'))

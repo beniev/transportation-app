@@ -6,6 +6,7 @@ import { useSubmitOrder } from '../../api/hooks/useOrders'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ReviewForm from '../../components/reviews/ReviewForm'
 import StarRating from '../../components/reviews/StarRating'
+import PhoneVerificationModal from '../../components/common/PhoneVerificationModal'
 import { reviewsAPI, type Review } from '../../api/endpoints/reviews'
 import type { OrderStatus as OrderStatusType } from '../../types'
 
@@ -13,7 +14,7 @@ const statusColors: Record<OrderStatusType, string> = {
   draft: 'bg-gray-100 text-gray-700',
   pending: 'bg-yellow-100 text-yellow-700',
   comparing: 'bg-indigo-100 text-indigo-700',
-  quoted: 'bg-blue-100 text-blue-700',
+  quoted: 'bg-teal-100 text-teal-700',
   approved: 'bg-green-100 text-green-700',
   scheduled: 'bg-purple-100 text-purple-700',
   in_progress: 'bg-orange-100 text-orange-700',
@@ -32,6 +33,7 @@ export default function OrderStatus() {
   const { data: order, isLoading, error } = useOrder(orderId || '')
   const submitOrderMutation = useSubmitOrder()
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [showPhoneVerification, setShowPhoneVerification] = useState(false)
   const [existingReview, setExistingReview] = useState<Review | null>(null)
   const [reviewLoading, setReviewLoading] = useState(false)
 
@@ -51,10 +53,19 @@ export default function OrderStatus() {
     try {
       await submitOrderMutation.mutateAsync(orderId)
     } catch (err: any) {
+      console.log('Submit order error:', err)
+      console.log('Error response data:', err.response?.data)
+      // Check if phone verification is required
+      const errorCode = err.response?.data?.error || err?.data?.error
+      if (errorCode === 'phone_not_verified') {
+        setShowPhoneVerification(true)
+        return
+      }
       setSubmitError(
-        isRTL
+        err.response?.data?.detail ||
+        (isRTL
           ? 'שגיאה בשליחת ההזמנה. נסה שוב.'
-          : 'Error submitting order. Please try again.'
+          : 'Error submitting order. Please try again.')
       )
     }
   }
@@ -85,12 +96,12 @@ export default function OrderStatus() {
     <div dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Draft Order - Ready to Submit */}
       {isDraft && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 text-center">
+        <div className="bg-teal-50 border border-teal-200 rounded-lg p-6 mb-6 text-center">
           <div className="text-4xl mb-3">📋</div>
-          <h1 className="text-2xl font-bold text-blue-800 mb-2">
+          <h1 className="text-2xl font-bold text-teal-800 mb-2">
             {isRTL ? 'ההזמנה מוכנה לשליחה!' : 'Order Ready to Submit!'}
           </h1>
-          <p className="text-blue-700 mb-4">
+          <p className="text-teal-700 mb-4">
             {isRTL
               ? 'בדוק את הפרטים למטה ולחץ "שלח למובילים" כדי לקבל הצעות מחיר.'
               : 'Review the details below and click "Send to Movers" to receive price quotes.'}
@@ -103,7 +114,7 @@ export default function OrderStatus() {
           <div className="flex gap-3 justify-center flex-wrap">
             <Link
               to={`/order/edit/${order.id}`}
-              className="inline-flex items-center px-6 py-3 text-lg font-semibold text-blue-700 bg-blue-50 border-2 border-blue-300 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-colors"
+              className="inline-flex items-center px-6 py-3 text-lg font-semibold text-teal-700 bg-teal-50 border-2 border-teal-300 rounded-lg hover:bg-teal-100 focus:outline-none focus:ring-4 focus:ring-teal-200 transition-colors"
             >
               {isRTL ? '✏️ ערוך הזמנה' : '✏️ Edit Order'}
             </Link>
@@ -275,7 +286,7 @@ export default function OrderStatus() {
                   </span>
                   <span className="text-gray-500 mx-2">x{item.quantity}</span>
                   {item.requires_assembly && (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                    <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded">
                       {t('orders.assembly')}
                     </span>
                   )}
@@ -379,7 +390,7 @@ export default function OrderStatus() {
             }
           </p>
           {order.date_flexibility === 'range' && (
-            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full mt-1 inline-block">
+            <span className="text-xs px-2 py-0.5 bg-teal-100 text-teal-700 rounded-full mt-1 inline-block">
               {isRTL ? 'טווח גמיש' : 'Flexible range'}
             </span>
           )}
@@ -451,6 +462,17 @@ export default function OrderStatus() {
           {isRTL ? 'הזמנה חדשה' : 'New Order'}
         </Link>
       </div>
+
+      {/* Phone Verification Modal */}
+      <PhoneVerificationModal
+        isOpen={showPhoneVerification}
+        onClose={() => setShowPhoneVerification(false)}
+        onVerified={() => {
+          setShowPhoneVerification(false)
+          // Auto-retry submit after verification
+          handleSubmitOrder()
+        }}
+      />
     </div>
   )
 }

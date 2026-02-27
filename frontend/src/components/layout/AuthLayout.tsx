@@ -13,10 +13,15 @@ export default function AuthLayout() {
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-primary-600">Movers App</h1>
-            <p className="text-gray-600 mt-2">אפליקציית הובלות חכמה</p>
+            <div className="inline-flex items-center gap-2 mb-2">
+              <div className="w-10 h-10 rounded-xl gradient-teal flex items-center justify-center">
+                <span className="text-white font-bold text-lg">T</span>
+              </div>
+            </div>
+            <h1 className="text-3xl font-bold text-teal-700">Tovil</h1>
+            <p className="text-gray-500 mt-1 text-sm">פלטפורמת הובלות חכמה</p>
           </div>
-          <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="bg-white rounded-xl shadow-lg p-8">
             <Outlet />
           </div>
         </div>

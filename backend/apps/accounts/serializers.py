@@ -200,3 +200,28 @@ class UpdateUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['first_name', 'last_name', 'phone', 'preferred_language']
+
+
+class MoverRegistrationCompleteSerializer(serializers.Serializer):
+    """Serializer for completing mover registration (company + phone)."""
+    company_name = serializers.CharField(max_length=255, required=True)
+    phone = serializers.CharField(max_length=20, required=True)
+
+
+class DirectLinkSettingsSerializer(serializers.Serializer):
+    """Serializer for mover direct link settings."""
+    enabled = serializers.BooleanField(required=True)
+
+
+class PublicMoverByCodeSerializer(serializers.ModelSerializer):
+    """Public serializer for mover info via direct link code."""
+
+    class Meta:
+        model = MoverProfile
+        fields = [
+            'id', 'company_name', 'company_name_he',
+            'description', 'description_he',
+            'rating', 'total_reviews', 'completed_orders',
+            'logo', 'city',
+        ]
+        read_only_fields = fields

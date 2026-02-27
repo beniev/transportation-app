@@ -1,14 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../contexts/AuthContext'
-
-interface LoginForm {
-  email: string
-  password: string
-}
 
 declare global {
   interface Window {
@@ -47,14 +41,11 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
 export default function Login() {
   const { t, i18n } = useTranslation()
-  const { login, loginWithGoogle } = useAuth()
+  const { loginWithGoogle } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [googleLoaded, setGoogleLoaded] = useState(false)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>()
-
   useEffect(() => {
-    // Load Google Sign-In script
     if (!GOOGLE_CLIENT_ID) {
       console.warn('Google Client ID not configured')
       return
@@ -70,7 +61,10 @@ export default function Login() {
     document.body.appendChild(script)
 
     return () => {
-      document.body.removeChild(script)
+      const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]')
+      if (existingScript) {
+        document.body.removeChild(existingScript)
+      }
     }
   }, [])
 
@@ -83,6 +77,7 @@ export default function Login() {
 
       const buttonDiv = document.getElementById('google-signin-button')
       if (buttonDiv) {
+        buttonDiv.innerHTML = ''
         window.google.accounts.id.renderButton(buttonDiv, {
           theme: 'outline',
           size: 'large',
@@ -99,84 +94,39 @@ export default function Login() {
     try {
       await loginWithGoogle(response.credential)
       toast.success(t('common.success'))
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } }
       console.error('Google login error:', error)
-      toast.error(error.response?.data?.error || t('common.error'))
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const onSubmit = async (data: LoginForm) => {
-    setIsLoading(true)
-    try {
-      await login(data.email, data.password)
-      toast.success(t('common.success'))
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || t('common.error'))
+      toast.error(err.response?.data?.error || t('common.error'))
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-center mb-6">{t('auth.login')}</h2>
+    <div className="text-center">
+      <h2 className="text-2xl font-bold mb-2">{t('auth.login')}</h2>
+      <p className="text-gray-500 mb-8 text-sm">
+        {i18n.language === 'he' ? 'התחבר עם חשבון גוגל' : 'Sign in with your Google account'}
+      </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div>
-          <label className="label">{t('auth.email')}</label>
-          <input
-            type="email"
-            className="input"
-            {...register('email', { required: true })}
-          />
-          {errors.email && <span className="text-red-500 text-sm">{t('common.required')}</span>}
-        </div>
+      <div className="flex flex-col items-center gap-4">
+        {GOOGLE_CLIENT_ID ? (
+          <div id="google-signin-button" className="w-full flex justify-center"></div>
+        ) : (
+          <p className="text-sm text-gray-500">
+            Google Sign-In not configured
+          </p>
+        )}
 
-        <div>
-          <label className="label">{t('auth.password')}</label>
-          <input
-            type="password"
-            className="input"
-            {...register('password', { required: true })}
-          />
-          {errors.password && <span className="text-red-500 text-sm">{t('common.required')}</span>}
-        </div>
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn btn-primary w-full"
-        >
-          {isLoading ? t('common.loading') : t('auth.login')}
-        </button>
-      </form>
-
-      <div className="mt-6">
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">או</span>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-col items-center gap-2">
-          {GOOGLE_CLIENT_ID ? (
-            <div id="google-signin-button" className="w-full flex justify-center"></div>
-          ) : (
-            <p className="text-sm text-gray-500 text-center">
-              Google Sign-In not configured
-            </p>
-          )}
-        </div>
+        {isLoading && (
+          <p className="text-sm text-gray-500">{t('common.loading')}</p>
+        )}
       </div>
 
-      <p className="mt-6 text-center text-sm text-gray-600">
+      <p className="mt-8 text-sm text-gray-600">
         {t('auth.noAccount')}{' '}
-        <Link to="/register" className="text-primary-600 hover:underline">
+        <Link to="/register" className="text-teal-600 hover:text-teal-700 hover:underline font-medium">
           {t('auth.register')}
         </Link>
       </p>

@@ -143,8 +143,8 @@ export default function CompareMovers() {
       )}
 
       {/* Manual Quote Option */}
-      <div className="card mt-6 bg-blue-50 border border-blue-200">
-        <p className="text-blue-800 mb-3">{t('comparison.manualQuotePrompt')}</p>
+      <div className="card mt-6 bg-teal-50 border border-teal-200">
+        <p className="text-teal-800 mb-3">{t('comparison.manualQuotePrompt')}</p>
         <button
           onClick={handleManualQuote}
           disabled={manualQuoteMutation.isPending}
