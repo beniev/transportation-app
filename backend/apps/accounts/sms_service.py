@@ -3,7 +3,10 @@ SMS service using SMS4Free API for sending verification codes.
 """
 import logging
 import requests
+import urllib3
 from django.conf import settings
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +43,7 @@ def send_sms(recipient: str, message: str) -> bool:
     }
 
     try:
-        response = requests.post(url, json=payload, timeout=10)
+        response = requests.post(url, json=payload, timeout=10, verify=False)
         result = response.text.strip()
         logger.info(f"SMS4Free response for {phone}: {result}")
 
