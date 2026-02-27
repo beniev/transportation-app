@@ -35,7 +35,7 @@ export const authAPI = {
     return response.data
   },
 
-  requestPhoneVerification: async (phone: string): Promise<{ message: string }> => {
+  requestPhoneVerification: async (phone: string): Promise<{ message: string; sms_sent?: boolean }> => {
     const response = await apiClient.post('/auth/phone/request-verification/', { phone })
     return response.data
   },
